@@ -1,0 +1,166 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Diff — Node-RED Backup{% endblock %}
+
+{% block content %}
+{% include "backup/components/_breadcrumb.html" with items=breadcrumb_items %}
+
+<!-- Header: Backup A → Backup B -->
+<div class="mb-4">
+  <h1 class="mb-3 text-xl font-semibold">Diff</h1>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+    {% if backup_a %}
+    <div class="flex-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Base</div>
+      <a href="{% url 'backup_detail' backup_a.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup_a.created_at|date:"Y-m-d H:i:s" }}</a>
+      {% if backup_a.label %}<div class="text-sm text-gray-500 dark:text-gray-400">{{ backup_a.label }}</div>{% endif %}
+      <div class="mt-1">{% include "backup/components/_badge.html" with text=backup_a.get_trigger_display variant="secondary" %}</div>
+    </div>
+    {% else %}
+    <div class="flex-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Base</div>
+      <span class="text-sm text-gray-500 dark:text-gray-400">No previous backup</span>
+    </div>
+    {% endif %}
+    <div class="hidden text-2xl text-gray-400 sm:block">&rarr;</div>
+    <div class="flex-1 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Current</div>
+      <a href="{% url 'backup_detail' backup_b.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup_b.created_at|date:"Y-m-d H:i:s" }}</a>
+      {% if backup_b.label %}<div class="text-sm text-gray-500 dark:text-gray-400">{{ backup_b.label }}</div>{% endif %}
+      <div class="mt-1">{% include "backup/components/_badge.html" with text=backup_b.get_trigger_display variant="secondary" %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Selector -->
+{% if all_backups %}
+<div class="mb-4 flex items-end gap-2">
+  <div>
+    <label for="compare-select" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Compare against</label>
+    <select id="compare-select" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+      <option value="">Select a backup&hellip;</option>
+      {% for pk, created_at, label in all_backups %}
+      <option value="{{ pk }}" {% if backup_a and backup_a.pk == pk %}selected{% endif %}>
+        {{ created_at|date:"Y-m-d H:i" }}{% if label %} — {{ label }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn-primary" onclick="compareDiff({{ backup_b.pk }})">Compare</button>
+</div>
+{% endif %}
+
+{% if archive_error %}
+{% include "backup/components/_alert.html" with tags="error" message=archive_error %}
+{% endif %}
+
+{% if not backup_a %}
+<!-- First backup — nothing to compare -->
+{% include "backup/components/_card_section_start.html" with title="Diff Result" extra_class="mb-4" %}
+  <p class="text-sm text-gray-500 dark:text-gray-400">This is the first backup &mdash; nothing to compare against. Use the dropdown above to select a backup to compare.</p>
+{% include "backup/components/_card_section_end.html" %}
+
+{% elif diff_data %}
+<!-- Summary Stats -->
+<div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+  {% include "backup/components/_stat_card.html" with label="Tabs Changed" value=summary_stats.tabs_modified value_class=summary_stats.tabs_modified|yesno:"text-yellow-500," %}
+  {% include "backup/components/_stat_card.html" with label="Tabs Added" value=summary_stats.tabs_added value_class=summary_stats.tabs_added|yesno:"text-green-500," %}
+  {% include "backup/components/_stat_card.html" with label="Tabs Removed" value=summary_stats.tabs_removed value_class=summary_stats.tabs_removed|yesno:"text-red-500," %}
+  {% include "backup/components/_stat_card.html" with label="Subflows Changed" value=summary_stats.subflows_modified value_class=summary_stats.subflows_modified|yesno:"text-yellow-500," %}
+  {% include "backup/components/_stat_card.html" with label="Nodes Changed" value=summary_stats.nodes_changed %}
+</div>
+
+<!-- Tab Overview -->
+{% if tab_overview %}
+{% include "backup/components/_card_section_start.html" with title="Tab Overview" extra_class="mb-4" %}
+  <div class="flex flex-wrap gap-1">
+    {% for tab in tab_overview %}
+    {% if tab.status == "added" %}
+    {% include "backup/components/_badge.html" with text=tab.label variant="success" %}
+    {% elif tab.status == "removed" %}
+    {% include "backup/components/_badge.html" with text=tab.label variant="danger" %}
+    {% elif tab.status == "modified" %}
+    {% include "backup/components/_badge.html" with text=tab.label variant="warning" %}
+    {% else %}
+    {% include "backup/components/_badge.html" with text=tab.label variant="secondary" %}
+    {% endif %}
+    {% endfor %}
+  </div>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Tabs Added -->
+{% if diff_data.tabs_added %}
+{% include "backup/components/_card_section_start.html" with title="Tabs Added" extra_class="mb-4" %}
+  <ul class="list-inside list-disc text-sm">
+    {% for tab in diff_data.tabs_added %}
+    <li class="text-green-600 dark:text-green-400">{{ tab }}</li>
+    {% endfor %}
+  </ul>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Tabs Removed -->
+{% if diff_data.tabs_removed %}
+{% include "backup/components/_card_section_start.html" with title="Tabs Removed" extra_class="mb-4" %}
+  <ul class="list-inside list-disc text-sm">
+    {% for tab in diff_data.tabs_removed %}
+    <li class="text-red-600 dark:text-red-400">{{ tab }}</li>
+    {% endfor %}
+  </ul>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Tabs Modified -->
+{% if diff_data.tabs_modified %}
+{% include "backup/components/_card_section_start.html" with title="Tabs Modified" extra_class="mb-4" %}
+  {% for tab in diff_data.tabs_modified %}
+  {% include "backup/components/_diff_nodes.html" with container=tab %}
+  {% endfor %}
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Subflows Added -->
+{% if diff_data.subflows_added %}
+{% include "backup/components/_card_section_start.html" with title="Subflows Added" extra_class="mb-4" %}
+  <ul class="list-inside list-disc text-sm">
+    {% for sf in diff_data.subflows_added %}
+    <li class="text-green-600 dark:text-green-400">{{ sf }}</li>
+    {% endfor %}
+  </ul>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Subflows Removed -->
+{% if diff_data.subflows_removed %}
+{% include "backup/components/_card_section_start.html" with title="Subflows Removed" extra_class="mb-4" %}
+  <ul class="list-inside list-disc text-sm">
+    {% for sf in diff_data.subflows_removed %}
+    <li class="text-red-600 dark:text-red-400">{{ sf }}</li>
+    {% endfor %}
+  </ul>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Subflows Modified -->
+{% if diff_data.subflows_modified %}
+{% include "backup/components/_card_section_start.html" with title="Subflows Modified" extra_class="mb-4" %}
+  {% for sf in diff_data.subflows_modified %}
+  {% include "backup/components/_diff_nodes.html" with container=sf %}
+  {% endfor %}
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- No changes -->
+{% if not has_changes %}
+{% include "backup/components/_card_section_start.html" with title="Diff Result" extra_class="mb-4" %}
+  <p class="text-sm text-gray-500 dark:text-gray-400">No structural changes detected between these two backups.</p>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+{% elif not archive_error %}
+{% include "backup/components/_card_section_start.html" with title="Diff Result" extra_class="mb-4" %}
+  <p class="text-sm text-gray-500 dark:text-gray-400">Could not compute diff.</p>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+{% endblock %}

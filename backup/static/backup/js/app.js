@@ -92,6 +92,15 @@ function deleteBackup(backupId, filename) {
   form.submit();
 }
 
+// Navigate to diff comparison
+function compareDiff(backupId) {
+  var select = document.getElementById('compare-select');
+  var compareId = select.value;
+  if (compareId) {
+    window.location.href = '/diff/' + backupId + '/' + compareId + '/';
+  }
+}
+
 // Restore backup
 function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {

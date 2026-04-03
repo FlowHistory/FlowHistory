@@ -5,8 +5,8 @@ services:
     ports:
       - "9472:8000"
     volumes:
-      - ./data:/app/data
-      - ./backups:/app/backups
+      - ~/docker/volumes/nodered/backups/data:/app/data
+      - ~/docker/volumes/nodered/backups/backups:/app/backups
       - /media/cubxi/docker/volumes/nodered/data:/nodered-data
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:

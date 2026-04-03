@@ -1,5 +1,6 @@
 """Structural diff between Node-RED flow snapshots."""
 
+import difflib
 import json
 import logging
 import tarfile
@@ -20,54 +21,68 @@ def diff_tab_summaries(prev, current):
         {
             "tabs_added": [str],
             "tabs_removed": [str],
-            "tabs_modified": [
-                {
-                    "label": str,
-                    "nodes_before": int,
-                    "nodes_after": int,
-                    "nodes_added": [{"type", "name"?, "group"?}],
-                    "nodes_removed": [...],
-                    "nodes_modified": [{..., "changed_fields": [str]}],
-                }
-            ],
+            "tabs_modified": [{...}],
+            "subflows_added": [str],
+            "subflows_removed": [str],
+            "subflows_modified": [{...}],
         }
     """
-    prev_tabs = {t["id"]: t for t in prev.get("tabs", [])}
-    curr_tabs = {t["id"]: t for t in current.get("tabs", [])}
-
     prev_groups = prev.get("groups", {})
     curr_groups = current.get("groups", {})
     prev_nodes = prev.get("nodes_by_id", {})
     curr_nodes = current.get("nodes_by_id", {})
 
-    prev_ids = set(prev_tabs.keys())
-    curr_ids = set(curr_tabs.keys())
+    # Diff tabs
+    prev_tabs = {t["id"]: t for t in prev.get("tabs", [])}
+    curr_tabs = {t["id"]: t for t in current.get("tabs", [])}
+    tabs_result = _diff_container_set(
+        prev_tabs, curr_tabs, "label", prev_nodes, curr_nodes,
+        prev_groups, curr_groups,
+    )
 
-    added = [curr_tabs[tid]["label"] for tid in (curr_ids - prev_ids)]
-    removed = [prev_tabs[tid]["label"] for tid in (prev_ids - curr_ids)]
-    modified = []
-
-    for tid in prev_ids & curr_ids:
-        # If we have node-level data, do a detailed diff
-        if prev_nodes or curr_nodes:
-            tab_diff = _diff_tab_nodes(
-                tid, prev_nodes, curr_nodes, prev_groups, curr_groups,
-            )
-        else:
-            # Backward compat: fall back to count-only comparison
-            tab_diff = _diff_tab_counts(prev_tabs[tid], curr_tabs[tid])
-
-        if tab_diff is not None:
-            tab_diff["label"] = curr_tabs[tid]["label"]
-            tab_diff["nodes_before"] = prev_tabs[tid]["node_count"]
-            tab_diff["nodes_after"] = curr_tabs[tid]["node_count"]
-            modified.append(tab_diff)
+    # Diff subflows
+    prev_sfs = {s["id"]: s for s in prev.get("subflows", [])}
+    curr_sfs = {s["id"]: s for s in current.get("subflows", [])}
+    sfs_result = _diff_container_set(
+        prev_sfs, curr_sfs, "name", prev_nodes, curr_nodes,
+        prev_groups, curr_groups,
+    )
 
     return {
-        "tabs_added": added,
-        "tabs_removed": removed,
-        "tabs_modified": modified,
+        "tabs_added": tabs_result["added"],
+        "tabs_removed": tabs_result["removed"],
+        "tabs_modified": tabs_result["modified"],
+        "subflows_added": sfs_result["added"],
+        "subflows_removed": sfs_result["removed"],
+        "subflows_modified": sfs_result["modified"],
     }
+
+
+def _diff_container_set(prev_map, curr_map, label_key, prev_nodes, curr_nodes,
+                        prev_groups, curr_groups):
+    """Diff a set of containers (tabs or subflows)."""
+    prev_ids = set(prev_map.keys())
+    curr_ids = set(curr_map.keys())
+
+    added = [curr_map[cid][label_key] for cid in (curr_ids - prev_ids)]
+    removed = [prev_map[cid][label_key] for cid in (prev_ids - curr_ids)]
+    modified = []
+
+    for cid in prev_ids & curr_ids:
+        if prev_nodes or curr_nodes:
+            container_diff = _diff_container_nodes(
+                cid, prev_nodes, curr_nodes, prev_groups, curr_groups,
+            )
+        else:
+            container_diff = _diff_tab_counts(prev_map[cid], curr_map[cid])
+
+        if container_diff is not None:
+            container_diff["label"] = curr_map[cid][label_key]
+            container_diff["nodes_before"] = prev_map[cid]["node_count"]
+            container_diff["nodes_after"] = curr_map[cid]["node_count"]
+            modified.append(container_diff)
+
+    return {"added": added, "removed": removed, "modified": modified}
 
 
 def _diff_tab_counts(prev_tab, curr_tab):
@@ -81,10 +96,11 @@ def _diff_tab_counts(prev_tab, curr_tab):
     return None
 
 
-def _diff_tab_nodes(tab_id, prev_nodes, curr_nodes, prev_groups, curr_groups):
-    """Compare individual nodes within a tab, returning detailed changes."""
-    prev_tab = {nid: n for nid, n in prev_nodes.items() if n["z"] == tab_id}
-    curr_tab = {nid: n for nid, n in curr_nodes.items() if n["z"] == tab_id}
+def _diff_container_nodes(container_id, prev_nodes, curr_nodes,
+                          prev_groups, curr_groups):
+    """Compare individual nodes within a tab or subflow."""
+    prev_tab = {nid: n for nid, n in prev_nodes.items() if n["z"] == container_id}
+    curr_tab = {nid: n for nid, n in curr_nodes.items() if n["z"] == container_id}
 
     prev_nids = set(prev_tab.keys())
     curr_nids = set(curr_tab.keys())
@@ -103,9 +119,10 @@ def _diff_tab_nodes(tab_id, prev_nodes, curr_nodes, prev_groups, curr_groups):
         curr_data = curr_tab[nid].get("_data", {})
         if prev_data != curr_data:
             desc = _describe_node(curr_tab[nid], curr_groups)
-            changed = _changed_fields(prev_data, curr_data)
-            if changed:
-                desc["changed_fields"] = changed
+            field_diffs = _field_diffs(prev_data, curr_data)
+            if field_diffs:
+                desc["changed_fields"] = [f["field"] for f in field_diffs]
+                desc["field_diffs"] = field_diffs
             nodes_modified.append(desc)
 
     if not nodes_added and not nodes_removed and not nodes_modified:
@@ -130,6 +147,62 @@ def _describe_node(node_detail, groups):
         if group_name:
             desc["group"] = group_name
     return desc
+
+
+def _field_diffs(prev_data, curr_data):
+    """Return detailed per-field diffs between two node data dicts.
+
+    Each entry: {"field": str, "diff": str} where diff is a unified diff
+    for multi-line strings, or "old_value → new_value" for simple values.
+    """
+    all_keys = set(prev_data.keys()) | set(curr_data.keys())
+    skip = {"id", "type"}
+    result = []
+
+    for key in sorted(all_keys - skip):
+        old = prev_data.get(key)
+        new = curr_data.get(key)
+        if old == new:
+            continue
+
+        diff_text = _format_value_diff(key, old, new)
+        result.append({"field": key, "diff": diff_text})
+
+    return result
+
+
+def _format_value_diff(field, old, new):
+    """Produce a human-readable diff for a single field change."""
+    old_str = _to_str(old)
+    new_str = _to_str(new)
+
+    # Use unified diff for multi-line strings
+    if "\n" in old_str or "\n" in new_str:
+        lines = list(difflib.unified_diff(
+            old_str.splitlines(keepends=True),
+            new_str.splitlines(keepends=True),
+            fromfile=f"a/{field}",
+            tofile=f"b/{field}",
+            lineterm="",
+        ))
+        if lines:
+            return "\n".join(lines)
+
+    # Simple before → after for short values
+    if old is None:
+        return f"+ {new_str}"
+    if new is None:
+        return f"- {old_str}"
+    return f"- {old_str}\n+ {new_str}"
+
+
+def _to_str(value):
+    """Convert a value to a string suitable for diffing."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, indent=2)
 
 
 def _changed_fields(prev_data, curr_data):
@@ -174,7 +247,9 @@ def diff_backup_archives(archive_path_a, archive_path_b):
 
     Returns:
         Dict with diff results plus both parsed structures:
-        {"tabs_added", "tabs_removed", "tabs_modified", "prev", "current"}
+        {"tabs_added", "tabs_removed", "tabs_modified",
+         "subflows_added", "subflows_removed", "subflows_modified",
+         "prev", "current"}
 
     Raises:
         FileNotFoundError: If either archive is missing.
@@ -188,6 +263,9 @@ def diff_backup_archives(archive_path_a, archive_path_b):
             "tabs_added": [],
             "tabs_removed": [],
             "tabs_modified": [],
+            "subflows_added": [],
+            "subflows_removed": [],
+            "subflows_modified": [],
             "prev": prev,
             "current": current,
         }

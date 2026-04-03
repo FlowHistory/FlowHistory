@@ -26,3 +26,5 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0007](0007-settings-page.md) | Settings Page | **Implemented** |
 | [0008](0008-tailwind-css-and-template-components.md) | Tailwind CSS Migration and Template Componentization | **Implemented** |
 | [0009](0009-label-delete-endpoints.md) | Backup Label and Delete Endpoints | **Implemented** |
+| [0010](0010-diff-viewer-page.md) | Diff Viewer Page | **Implemented** |
+| [0011](0011-error-routes.md) | Error Routes (404/500) with Redirect and Flash Messages | **Proposed** |

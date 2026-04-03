@@ -1,0 +1,16 @@
+{% comment %}
+Node badge pill for diff views.
+
+Parameters:
+  node     — dict with keys: type, name? group? changed_fields?
+  variant  — "success" (green), "danger" (red), "warning" (yellow)
+{% endcomment %}
+{% if variant == "success" %}
+<span class="mr-1 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800 dark:bg-green-900 dark:text-green-200">
+{% elif variant == "danger" %}
+<span class="mr-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
+{% else %}
+<span class="mr-1 inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" {% if node.changed_fields %}title="Changed: {{ node.changed_fields|join:', ' }}"{% endif %}>
+{% endif %}
+  {{ node.type }}{% if node.name %}: {{ node.name }}{% endif %}{% if node.group %} <span class="opacity-75">({{ node.group }})</span>{% endif %}
+</span>

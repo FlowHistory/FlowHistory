@@ -266,7 +266,7 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - [x] Implement retention_service.py
 - [x] Create management commands (runapscheduler, runwatcher)
 - [ ] Build settings template (`/settings/` form for NodeRedConfig)
-- [ ] Build diff viewer template (`/diff/<id>/`)
+- [x] Build diff viewer template (`/diff/<id>/`)
 - [ ] Dashboard improvements (download, delete, labels, status cards)
 - [x] Create Dockerfile, docker-compose.yml, entrypoint.sh
 - [ ] Add notification service (Discord, Slack, Telegram, Pushbullet, HA)

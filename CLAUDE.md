@@ -6,6 +6,8 @@ Django-based backup and restore tool for Node-RED flow files, running in Docker.
 
 All commands run inside the Docker container. Never use local `python`, `uv run`, or `manage.py` directly.
 
+**Always rebuild the container** (`docker compose up -d --build`) after making code changes before testing in the browser.
+
 ### Build & Run
 ```bash
 docker compose up -d --build    # Rebuild and restart
@@ -40,6 +42,12 @@ docker exec nodered-backup python manage.py <command>
 - Service layer pattern: `backup/services/` contains all business logic
 - ADRs in `docs/adr/` track all architecture decisions
 - SQLite database in `./data/`, backup archives in `./backups/`
+
+## ADR Workflow
+
+When an ADR implementation is complete:
+1. Update the ADR status from "Proposed" to "Implemented"
+2. Only commit and push **after the user has verified/tested** the feature is working
 
 ## Tailwind CSS Conventions
 

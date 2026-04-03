@@ -295,6 +295,66 @@ class DiffTabSummariesTest(TestCase):
         self.assertEqual(diff["tabs_modified"][0]["nodes_before"], 3)
         self.assertEqual(diff["tabs_modified"][0]["nodes_after"], 7)
 
+    def test_subflow_node_modified(self):
+        prev = self._make_parsed([
+            {"id": "sf1", "type": "subflow", "name": "My Subflow"},
+            {"id": "n1", "type": "function", "z": "sf1", "func": "return msg;"},
+        ])
+        curr = self._make_parsed([
+            {"id": "sf1", "type": "subflow", "name": "My Subflow"},
+            {"id": "n1", "type": "function", "z": "sf1", "func": "msg.payload = 1;\nreturn msg;"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        self.assertEqual(diff["tabs_modified"], [])
+        self.assertEqual(len(diff["subflows_modified"]), 1)
+        self.assertEqual(diff["subflows_modified"][0]["label"], "My Subflow")
+        mod_node = diff["subflows_modified"][0]["nodes_modified"][0]
+        self.assertIn("func", mod_node["changed_fields"])
+
+    def test_subflow_added_removed(self):
+        prev = self._make_parsed([
+            {"id": "sf1", "type": "subflow", "name": "Old"},
+            {"id": "n1", "type": "inject", "z": "sf1"},
+        ])
+        curr = self._make_parsed([
+            {"id": "sf2", "type": "subflow", "name": "New"},
+            {"id": "n2", "type": "debug", "z": "sf2"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        self.assertIn("Old", diff["subflows_removed"])
+        self.assertIn("New", diff["subflows_added"])
+
+    def test_field_diffs_unified_format(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "function", "z": "t1", "func": "line1\nline2\nline3"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "function", "z": "t1", "func": "line1\nchanged\nline3"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]["nodes_modified"][0]
+        self.assertIn("field_diffs", mod)
+        func_diff = [fd for fd in mod["field_diffs"] if fd["field"] == "func"][0]
+        self.assertIn("-line2", func_diff["diff"])
+        self.assertIn("+changed", func_diff["diff"])
+
+    def test_field_diffs_simple_value(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1", "repeat": "5"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1", "repeat": "10"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]["nodes_modified"][0]
+        fd = [d for d in mod["field_diffs"] if d["field"] == "repeat"][0]
+        self.assertIn("- 5", fd["diff"])
+        self.assertIn("+ 10", fd["diff"])
+
 
 class BackupServiceTest(TestCase):
     def setUp(self):
@@ -1052,3 +1112,96 @@ class BackupDeleteTest(TestCase):
     def test_get_not_allowed(self):
         resp = self.client.get(f"/backup/{self.backup_record.pk}/delete/")
         self.assertEqual(resp.status_code, 405)
+
+
+# ---------------------------------------------------------------------------
+# Diff View
+# ---------------------------------------------------------------------------
+
+@override_settings(REQUIRE_AUTH=False)
+class DiffViewTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_diffview"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        with patch("backup.services.retention_service.apply_retention"):
+            self.backup_a = create_backup(config=self.config, trigger="manual")
+            # Modify flows for second backup
+            new_flows = SAMPLE_FLOWS + [
+                {"id": "tab3", "type": "tab", "label": "New Tab"},
+            ]
+            self.flows_file.write_text(json.dumps(new_flows))
+            self.backup_b = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        if self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir)
+
+    def test_diff_vs_previous_returns_200(self):
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_diff_vs_previous_shows_changes(self):
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        self.assertContains(resp, "New Tab")
+
+    def test_diff_compare_returns_200(self):
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_diff_compare_shows_changes(self):
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        self.assertContains(resp, "New Tab")
+
+    def test_diff_first_backup_no_previous(self):
+        resp = self.client.get(f"/diff/{self.backup_a.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "No previous backup")
+
+    def test_diff_nonexistent_backup_404(self):
+        resp = self.client.get("/diff/99999/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_diff_failed_backup_404(self):
+        failed = BackupRecord.objects.create(
+            config=self.config,
+            filename="fail.tar.gz",
+            file_path="/nonexistent",
+            file_size=0,
+            status="failed",
+        )
+        resp = self.client.get(f"/diff/{failed.pk}/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_diff_falls_back_to_stored_summary(self):
+        # Delete archives so archive diff fails, should fall back to stored summary
+        self.backup_b.refresh_from_db()
+        self.assertTrue(self.backup_b.changes_summary)
+        Path(self.backup_a.file_path).unlink()
+        Path(self.backup_b.file_path).unlink()
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "New Tab")
+
+    def test_diff_shows_error_when_no_archives_or_summary(self):
+        # Delete archives AND clear stored summary — should show error
+        self.backup_b.changes_summary = {}
+        self.backup_b.save(update_fields=["changes_summary"])
+        Path(self.backup_a.file_path).unlink()
+        Path(self.backup_b.file_path).unlink()
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "no longer available")
+
+    def test_comparison_dropdown_lists_other_backups(self):
+        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        # The dropdown should contain backup_a as an option
+        content = resp.content.decode()
+        self.assertIn(str(self.backup_a.pk), content)
