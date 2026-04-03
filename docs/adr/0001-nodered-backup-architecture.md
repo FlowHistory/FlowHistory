@@ -1,7 +1,7 @@
 # ADR 0001: Node-RED Backup Application Architecture
 
 ## Status
-Proposed
+Partially Implemented
 
 ## Context
 
@@ -255,10 +255,10 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 
 ## Todos
 
-- [ ] Initialize Django project (config/, backup/ apps)
-- [ ] Create models and migrations
-- [ ] Implement flow_parser.py
-- [ ] Implement backup_service.py with tar.gz creation
+- [x] Initialize Django project (config/, backup/ apps)
+- [x] Create models and migrations
+- [x] Implement flow_parser.py
+- [x] Implement backup_service.py with tar.gz creation
 - [ ] Implement watcher_service.py with watchdog + debouncing
 - [ ] Implement diff_service.py
 - [ ] Implement restore_service.py
@@ -266,8 +266,8 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - [ ] Implement retention_service.py
 - [ ] Create management commands (runapscheduler, runwatcher)
 - [ ] Build dashboard, settings, diff viewer templates
-- [ ] Create Dockerfile, docker-compose.yml, entrypoint.sh
+- [x] Create Dockerfile, docker-compose.yml, entrypoint.sh
 - [ ] Add notification service
-- [ ] Add optional auth middleware
+- [x] Add optional auth middleware
 - [ ] Write tests
-- [ ] Create README.md and .env.example
+- [x] Create README.md and .env.example

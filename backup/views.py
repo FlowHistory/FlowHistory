@@ -1,3 +1,4 @@
+import logging
 import os
 
 from django.conf import settings
@@ -6,6 +7,9 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import BackupRecord, NodeRedConfig
+from .services.backup_service import create_backup
+
+logger = logging.getLogger(__name__)
 
 
 def _get_or_create_config():
@@ -37,10 +41,39 @@ def health_check(request):
 
 @require_POST
 def api_create_backup(request):
-    return JsonResponse(
-        {"status": "error", "message": "Backup service not yet implemented"},
-        status=501,
-    )
+    config = _get_or_create_config()
+    try:
+        record = create_backup(config=config, trigger="manual")
+    except Exception:
+        logger.exception("Unexpected error creating backup")
+        return JsonResponse(
+            {"status": "error", "message": "Internal error creating backup"},
+            status=500,
+        )
+
+    if record is None:
+        return JsonResponse(
+            {"status": "skipped", "message": "Backup skipped — flows.json unchanged"},
+            status=200,
+        )
+
+    if record.status == "failed":
+        return JsonResponse(
+            {"status": "error", "message": record.error_message},
+            status=500,
+        )
+
+    return JsonResponse({
+        "status": "success",
+        "backup": {
+            "id": record.pk,
+            "filename": record.filename,
+            "file_size": record.file_size,
+            "checksum": record.checksum,
+            "trigger": record.trigger,
+            "created_at": record.created_at.isoformat(),
+        },
+    })
 
 
 def login_view(request):

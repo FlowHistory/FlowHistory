@@ -1,7 +1,7 @@
 # ADR 0002: Django App Bootstrapping
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 

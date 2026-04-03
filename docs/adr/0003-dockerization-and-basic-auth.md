@@ -1,7 +1,7 @@
 # ADR 0003: Dockerization and Basic Auth
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 
