@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Django
+*.sqlite3
+staticfiles/
+
+# Project data
+data/
+backups/
+
+# Environment
+.env

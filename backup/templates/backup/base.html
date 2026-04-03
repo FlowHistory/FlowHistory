@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Node-RED Backup{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'backup/vendor/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'backup/css/style.css' %}">
+</head>
+<body>
+  <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-bold" href="{% url 'dashboard' %}">Node-RED Backup</a>
+      <button class="btn btn-sm btn-outline-secondary ms-auto" id="theme-toggle" title="Toggle theme">
+        <span id="theme-icon">☀️</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="container-fluid px-4">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="container-fluid px-4 mt-4 mb-3">
+    <hr>
+    <small class="text-body-secondary">Node-RED Backup v0.1.0</small>
+  </footer>
+
+  <script src="{% static 'backup/vendor/js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'backup/js/app.js' %}"></script>
+</body>
+</html>
