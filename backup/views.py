@@ -2,7 +2,7 @@ import os
 
 from django.conf import settings
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import BackupRecord, NodeRedConfig
@@ -41,3 +41,19 @@ def api_create_backup(request):
         {"status": "error", "message": "Backup service not yet implemented"},
         status=501,
     )
+
+
+def login_view(request):
+    if request.method == "POST":
+        password = request.POST.get("password", "")
+        if password == settings.APP_PASSWORD:
+            request.session["authenticated"] = True
+            return redirect("dashboard")
+        return render(request, "backup/login.html", {"error": "Invalid password"})
+    return render(request, "backup/login.html")
+
+
+@require_POST
+def logout_view(request):
+    request.session.flush()
+    return redirect("login")

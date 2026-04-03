@@ -12,9 +12,17 @@
   <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom mb-4">
     <div class="container-fluid">
       <a class="navbar-brand fw-bold" href="{% url 'dashboard' %}">Node-RED Backup</a>
-      <button class="btn btn-sm btn-outline-secondary ms-auto" id="theme-toggle" title="Toggle theme">
-        <span id="theme-icon">☀️</span>
-      </button>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary" id="theme-toggle" title="Toggle theme">
+          <span id="theme-icon">☀️</span>
+        </button>
+        {% if require_auth %}
+        <form method="post" action="{% url 'logout' %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Logout</button>
+        </form>
+        {% endif %}
+      </div>
     </div>
   </nav>
 

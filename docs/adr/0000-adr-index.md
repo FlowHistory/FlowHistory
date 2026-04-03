@@ -19,3 +19,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 |-----|-------|--------|
 | [0001](0001-nodered-backup-architecture.md) | Node-RED Backup Application Architecture | **Proposed** |
 | [0002](0002-django-app-bootstrapping.md) | Django App Bootstrapping | **Proposed** |
+| [0003](0003-dockerization-and-basic-auth.md) | Dockerization and Basic Auth | **Proposed** |

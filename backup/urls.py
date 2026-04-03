@@ -6,4 +6,6 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("health/", views.health_check, name="health_check"),
     path("api/backup/", views.api_create_backup, name="api_create_backup"),
+    path("login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
 ]
