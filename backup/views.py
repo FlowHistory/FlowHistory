@@ -3,10 +3,12 @@ import os
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib import messages
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
+from .forms import NodeRedConfigForm
 from .models import BackupRecord, NodeRedConfig, RestoreRecord
 from .services.backup_service import create_backup
 from .services.restore_service import restore_backup
@@ -67,6 +69,19 @@ def backup_download(request, backup_id):
     if not archive.is_file():
         return JsonResponse({"status": "error", "message": "Archive not found"}, status=404)
     return FileResponse(open(archive, "rb"), as_attachment=True, filename=backup.filename)
+
+
+def settings_view(request):
+    config = _get_or_create_config()
+    if request.method == "POST":
+        form = NodeRedConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Settings saved successfully.")
+            return redirect("settings")
+    else:
+        form = NodeRedConfigForm(instance=config)
+    return render(request, "backup/settings.html", {"form": form})
 
 
 @require_GET

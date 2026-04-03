@@ -1,7 +1,7 @@
 # ADR 0007: Settings Page
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 
