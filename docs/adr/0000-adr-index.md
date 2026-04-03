@@ -25,3 +25,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0006](0006-diff-retention-watcher-services.md) | Diff, Retention, Watcher Services & Commands | **Implemented** |
 | [0007](0007-settings-page.md) | Settings Page | **Implemented** |
 | [0008](0008-tailwind-css-and-template-components.md) | Tailwind CSS Migration and Template Componentization | **Implemented** |
+| [0009](0009-label-delete-endpoints.md) | Backup Label and Delete Endpoints | **Implemented** |

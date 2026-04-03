@@ -931,3 +931,124 @@ class SchedulerBuildTriggerTest(TestCase):
         config.backup_day = 0
         trigger = Command._build_trigger(config)
         self.assertIsNotNone(trigger)
+
+
+# ---------------------------------------------------------------------------
+# API: Set Label
+# ---------------------------------------------------------------------------
+
+@override_settings(REQUIRE_AUTH=False)
+class ApiSetLabelTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_label"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        if self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir)
+
+    def test_set_label(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/label/",
+            data=json.dumps({"label": "Before refactor"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["backup"]["label"], "Before refactor")
+        self.backup_record.refresh_from_db()
+        self.assertEqual(self.backup_record.label, "Before refactor")
+
+    def test_clear_label(self):
+        self.backup_record.label = "old label"
+        self.backup_record.save()
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/label/",
+            data=json.dumps({"label": ""}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.backup_record.refresh_from_db()
+        self.assertEqual(self.backup_record.label, "")
+
+    def test_missing_label_field(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/label/",
+            data=json.dumps({"note": "wrong field"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_label_too_long(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/label/",
+            data=json.dumps({"label": "x" * 201}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_not_found(self):
+        resp = self.client.post(
+            "/api/backup/99999/label/",
+            data=json.dumps({"label": "test"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Backup Delete
+# ---------------------------------------------------------------------------
+
+@override_settings(REQUIRE_AUTH=False)
+class BackupDeleteTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_delete"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        if self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir)
+
+    def test_delete_removes_record_and_file(self):
+        archive_path = Path(self.backup_record.file_path)
+        self.assertTrue(archive_path.is_file())
+        pk = self.backup_record.pk
+        resp = self.client.post(f"/backup/{pk}/delete/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(BackupRecord.objects.filter(pk=pk).exists())
+        self.assertFalse(archive_path.is_file())
+
+    def test_delete_missing_file_still_succeeds(self):
+        Path(self.backup_record.file_path).unlink()
+        pk = self.backup_record.pk
+        resp = self.client.post(f"/backup/{pk}/delete/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(BackupRecord.objects.filter(pk=pk).exists())
+
+    def test_not_found(self):
+        resp = self.client.post("/backup/99999/delete/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_get_not_allowed(self):
+        resp = self.client.get(f"/backup/{self.backup_record.pk}/delete/")
+        self.assertEqual(resp.status_code, 405)

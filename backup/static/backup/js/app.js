@@ -50,6 +50,48 @@ function createBackup() {
   });
 }
 
+// Set backup label
+function setLabel(backupId, currentLabel) {
+  var label = prompt('Enter label for this backup:', currentLabel || '');
+  if (label === null) return; // cancelled
+  fetch('/api/backup/' + backupId + '/label/', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCsrfToken(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ label: label }),
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.status === 'success') {
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to set label');
+    }
+  })
+  .catch(function () {
+    alert('Request failed');
+  });
+}
+
+// Delete backup
+function deleteBackup(backupId, filename) {
+  if (!confirm('Delete backup ' + filename + '?\n\nThis cannot be undone.')) {
+    return;
+  }
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/backup/' + backupId + '/delete/';
+  var csrf = document.createElement('input');
+  csrf.type = 'hidden';
+  csrf.name = 'csrfmiddlewaretoken';
+  csrf.value = getCsrfToken();
+  form.appendChild(csrf);
+  document.body.appendChild(form);
+  form.submit();
+}
+
 // Restore backup
 function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {

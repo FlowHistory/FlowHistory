@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from pathlib import Path
@@ -172,6 +173,50 @@ def api_restore_backup(request, backup_id):
             "created_at": record.created_at.isoformat(),
         },
     })
+
+
+@require_POST
+def api_set_label(request, backup_id):
+    config = _get_or_create_config()
+    backup = get_object_or_404(BackupRecord, pk=backup_id, config=config)
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse(
+            {"status": "error", "message": "Invalid JSON body"}, status=400
+        )
+    if "label" not in body:
+        return JsonResponse(
+            {"status": "error", "message": "Missing 'label' field"}, status=400
+        )
+    label = body["label"]
+    if not isinstance(label, str):
+        return JsonResponse(
+            {"status": "error", "message": "'label' must be a string"}, status=400
+        )
+    if len(label) > 200:
+        return JsonResponse(
+            {"status": "error", "message": "Label must be 200 characters or fewer"},
+            status=400,
+        )
+    backup.label = label
+    backup.save(update_fields=["label"])
+    return JsonResponse({
+        "status": "success",
+        "backup": {"id": backup.pk, "label": backup.label},
+    })
+
+
+@require_POST
+def backup_delete(request, backup_id):
+    config = _get_or_create_config()
+    backup = get_object_or_404(BackupRecord, pk=backup_id, config=config)
+    archive = Path(backup.file_path)
+    if archive.is_file():
+        archive.unlink()
+    backup.delete()
+    messages.success(request, "Backup deleted.")
+    return redirect("dashboard")
 
 
 def login_view(request):

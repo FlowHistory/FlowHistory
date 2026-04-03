@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-4 flex items-center justify-between">
   <h1 class="text-xl font-semibold">Settings</h1>
-  <a href="{% url 'dashboard' %}" class="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Back to Dashboard</a>
+  <a href="{% url 'dashboard' %}" class="btn-secondary">Back to Dashboard</a>
 </div>
 
 <form method="post">
@@ -71,8 +71,8 @@
   {% include "backup/components/_card_section_end.html" %}
 
   <div class="flex gap-2">
-    <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Save Settings</button>
-    <a href="{% url 'dashboard' %}" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</a>
+    <button type="submit" class="btn-primary">Save Settings</button>
+    <a href="{% url 'dashboard' %}" class="btn-secondary px-4 py-2">Cancel</a>
   </div>
 </form>
 {% endblock %}
