@@ -67,3 +67,36 @@ class BackupRecord(models.Model):
 
     def __str__(self):
         return f"{self.filename} ({self.get_trigger_display()})"
+
+
+class RestoreRecord(models.Model):
+    STATUS_CHOICES = [
+        ("success", "Success"),
+        ("failed", "Failed"),
+    ]
+
+    config = models.ForeignKey(
+        NodeRedConfig, on_delete=models.CASCADE, related_name="restores"
+    )
+    backup = models.ForeignKey(
+        BackupRecord, on_delete=models.SET_NULL, null=True, related_name="restores"
+    )
+    safety_backup = models.ForeignKey(
+        BackupRecord,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="safety_for_restores",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="success")
+    error_message = models.TextField(blank=True, default="")
+    container_restarted = models.BooleanField(default=False)
+    restart_message = models.CharField(max_length=500, blank=True, default="")
+    files_restored = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Restore from {self.backup} at {self.created_at}"

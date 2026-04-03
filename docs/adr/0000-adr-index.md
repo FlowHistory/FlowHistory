@@ -21,3 +21,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0002](0002-django-app-bootstrapping.md) | Django App Bootstrapping | **Implemented** |
 | [0003](0003-dockerization-and-basic-auth.md) | Dockerization and Basic Auth | **Implemented** |
 | [0004](0004-backup-service-and-flow-parser.md) | Backup Service and Flow Parser | **Implemented** |
+| [0005](0005-restore-service-and-docker-service.md) | Restore Service and Docker Service | **Implemented** |

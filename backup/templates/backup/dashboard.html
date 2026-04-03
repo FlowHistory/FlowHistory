@@ -89,7 +89,13 @@
               {% endif %}
             </td>
             <td class="text-end">
+              {% if backup.status == "success" %}
+              <button class="btn btn-sm btn-outline-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">
+                Restore
+              </button>
+              {% else %}
               <span class="text-body-secondary small">—</span>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
@@ -127,6 +133,30 @@ function createBackup() {
     alert('Request failed');
     btn.disabled = false;
     btn.textContent = 'Create Backup';
+  });
+}
+
+function restoreBackup(id, filename) {
+  if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {
+    return;
+  }
+  fetch('/api/restore/' + id + '/', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert('Restore complete. Files restored: ' + data.restore.files_restored.join(', '));
+    } else {
+      alert('Restore failed: ' + (data.message || 'Unknown error'));
+    }
+    location.reload();
+  })
+  .catch(() => {
+    alert('Request failed');
   });
 }
 </script>

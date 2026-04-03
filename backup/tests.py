@@ -1,14 +1,15 @@
 import hashlib
 import json
+import shutil
 import tarfile
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from backup.models import BackupRecord, NodeRedConfig
+from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
 from backup.services.backup_service import (
     _diff_tab_summaries,
     create_backup,
@@ -18,6 +19,7 @@ from backup.services.flow_parser import (
     parse_flows,
     parse_flows_file,
 )
+from backup.services.restore_service import restore_backup
 
 # ---------------------------------------------------------------------------
 # Sample flows data
@@ -306,3 +308,218 @@ class ApiCreateBackupTest(TestCase):
         resp = self.client.post("/api/backup/")
         self.assertEqual(resp.status_code, 500)
         self.assertEqual(resp.json()["status"], "error")
+
+
+# ---------------------------------------------------------------------------
+# Docker Service
+# ---------------------------------------------------------------------------
+
+class DockerServiceTest(TestCase):
+    def test_is_docker_available_no_sdk(self):
+        with patch("backup.services.docker_service.docker", None):
+            from backup.services.docker_service import is_docker_available
+            self.assertFalse(is_docker_available())
+
+    def test_restart_container_no_sdk(self):
+        with patch("backup.services.docker_service.docker", None):
+            from backup.services.docker_service import restart_container
+            result = restart_container("nodered")
+            self.assertFalse(result["success"])
+            self.assertIn("not installed", result["message"])
+
+    def test_restart_container_success(self):
+        mock_docker = MagicMock()
+        mock_container = MagicMock()
+        mock_docker.from_env.return_value.containers.get.return_value = mock_container
+        with patch("backup.services.docker_service.docker", mock_docker):
+            from backup.services.docker_service import restart_container
+            result = restart_container("nodered")
+            self.assertTrue(result["success"])
+            mock_container.restart.assert_called_once_with(timeout=30)
+
+    def test_restart_container_not_found(self):
+        mock_docker = MagicMock()
+        from docker.errors import NotFound
+        mock_docker.from_env.return_value.containers.get.side_effect = NotFound("not found")
+        with patch("backup.services.docker_service.docker", mock_docker), \
+             patch("backup.services.docker_service.NotFound", NotFound):
+            from backup.services.docker_service import restart_container
+            result = restart_container("nodered")
+            self.assertFalse(result["success"])
+            self.assertIn("not found", result["message"])
+
+    def test_get_container_status_no_sdk(self):
+        with patch("backup.services.docker_service.docker", None):
+            from backup.services.docker_service import get_container_status
+            self.assertIsNone(get_container_status("nodered"))
+
+
+# ---------------------------------------------------------------------------
+# Restore Service
+# ---------------------------------------------------------------------------
+
+class RestoreServiceTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_restore"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        # Create a backup to restore from
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        restore_tmp = Path(settings.BACKUP_DIR) / "_restore_tmp"
+        if restore_tmp.exists():
+            shutil.rmtree(restore_tmp)
+        for f in self.tmp_dir.iterdir():
+            f.unlink()
+        self.tmp_dir.rmdir()
+
+    def test_restore_success(self):
+        # Modify flows.json so restore actually overwrites
+        self.flows_file.write_text("[]")
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "success")
+        self.assertIsInstance(result, RestoreRecord)
+        # Verify flows.json was restored
+        restored = json.loads(self.flows_file.read_text())
+        self.assertEqual(restored, SAMPLE_FLOWS)
+
+    def test_restore_creates_safety_backup(self):
+        restore_backup(self.backup_record.pk)
+        safety = BackupRecord.objects.filter(
+            config=self.config, trigger="pre_restore"
+        )
+        self.assertTrue(safety.exists())
+
+    def test_restore_record_tracks_safety_backup(self):
+        result = restore_backup(self.backup_record.pk)
+        self.assertIsNotNone(result.safety_backup)
+        self.assertEqual(result.safety_backup.trigger, "pre_restore")
+
+    def test_restore_files_list(self):
+        result = restore_backup(self.backup_record.pk)
+        self.assertIn("flows.json", result.files_restored)
+
+    def test_restore_invalid_id_raises(self):
+        with self.assertRaises(BackupRecord.DoesNotExist):
+            restore_backup(99999)
+
+    def test_restore_failed_backup_rejected(self):
+        failed = BackupRecord.objects.create(
+            config=self.config,
+            filename="bad.tar.gz",
+            file_path="/nonexistent/bad.tar.gz",
+            status="failed",
+            trigger="manual",
+        )
+        result = restore_backup(failed.pk)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("Cannot restore", result.error_message)
+
+    def test_restore_missing_archive(self):
+        Path(self.backup_record.file_path).unlink()
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("not found", result.error_message)
+
+    @patch("backup.services.restore_service.os.chown")
+    def test_restore_sets_ownership(self, mock_chown):
+        restore_backup(self.backup_record.pk)
+        mock_chown.assert_called()
+        args = mock_chown.call_args[0]
+        self.assertEqual(args[1], 1000)
+        self.assertEqual(args[2], 1000)
+
+    @patch("backup.services.restore_service.restart_container")
+    def test_restore_with_restart(self, mock_restart):
+        mock_restart.return_value = {"success": True, "message": "Restarted"}
+        self.config.restart_on_restore = True
+        self.config.save()
+        result = restore_backup(self.backup_record.pk)
+        self.assertTrue(result.container_restarted)
+        mock_restart.assert_called_once_with(self.config.nodered_container_name)
+
+    @patch("backup.services.restore_service.restart_container")
+    def test_restore_without_restart(self, mock_restart):
+        self.config.restart_on_restore = False
+        self.config.save()
+        result = restore_backup(self.backup_record.pk)
+        self.assertFalse(result.container_restarted)
+        mock_restart.assert_not_called()
+
+    @patch("backup.services.restore_service.restart_container")
+    def test_restore_restart_override(self, mock_restart):
+        mock_restart.return_value = {"success": True, "message": "Restarted"}
+        self.config.restart_on_restore = False
+        self.config.save()
+        result = restore_backup(self.backup_record.pk, restart=True)
+        self.assertTrue(result.container_restarted)
+        mock_restart.assert_called_once()
+
+    def test_restore_with_credentials(self):
+        # Create a backup that includes credentials
+        cred_file = self.tmp_dir / "flows_cred.json"
+        cred_file.write_text('{"encrypted": true}')
+        self.config.backup_credentials = True
+        self.config.save()
+        backup = create_backup(config=self.config, trigger="manual")
+        cred_file.unlink()  # Remove the original
+        result = restore_backup(backup.pk)
+        self.assertEqual(result.status, "success")
+        self.assertIn("flows_cred.json", result.files_restored)
+        self.assertTrue(cred_file.is_file())  # Should be restored
+
+
+# ---------------------------------------------------------------------------
+# Restore API
+# ---------------------------------------------------------------------------
+
+class ApiRestoreBackupTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_restore_api"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        restore_tmp = Path(settings.BACKUP_DIR) / "_restore_tmp"
+        if restore_tmp.exists():
+            shutil.rmtree(restore_tmp)
+        for f in self.tmp_dir.iterdir():
+            f.unlink()
+        self.tmp_dir.rmdir()
+
+    def test_post_restores_backup(self):
+        resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("restore", data)
+        self.assertIn("files_restored", data["restore"])
+
+    def test_get_not_allowed(self):
+        resp = self.client.get(f"/api/restore/{self.backup_record.pk}/")
+        self.assertEqual(resp.status_code, 405)
+
+    def test_nonexistent_backup_returns_404(self):
+        resp = self.client.post("/api/restore/99999/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_response_includes_safety_backup(self):
+        resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
+        data = resp.json()
+        self.assertIn("safety_backup_id", data["restore"])

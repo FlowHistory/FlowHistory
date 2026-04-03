@@ -6,8 +6,9 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import BackupRecord, NodeRedConfig
+from .models import BackupRecord, NodeRedConfig, RestoreRecord
 from .services.backup_service import create_backup
+from .services.restore_service import restore_backup
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,42 @@ def api_create_backup(request):
             "file_size": record.file_size,
             "checksum": record.checksum,
             "trigger": record.trigger,
+            "created_at": record.created_at.isoformat(),
+        },
+    })
+
+
+@require_POST
+def api_restore_backup(request, backup_id):
+    try:
+        record = restore_backup(backup_id)
+    except BackupRecord.DoesNotExist:
+        return JsonResponse(
+            {"status": "error", "message": "Backup not found"},
+            status=404,
+        )
+    except Exception:
+        logger.exception("Unexpected error restoring backup %s", backup_id)
+        return JsonResponse(
+            {"status": "error", "message": "Internal error during restore"},
+            status=500,
+        )
+
+    if record.status == "failed":
+        return JsonResponse(
+            {"status": "error", "message": record.error_message},
+            status=500,
+        )
+
+    return JsonResponse({
+        "status": "success",
+        "restore": {
+            "id": record.pk,
+            "backup_id": record.backup_id,
+            "safety_backup_id": record.safety_backup_id,
+            "files_restored": record.files_restored,
+            "container_restarted": record.container_restarted,
+            "restart_message": record.restart_message,
             "created_at": record.created_at.isoformat(),
         },
     })

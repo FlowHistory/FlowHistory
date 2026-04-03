@@ -261,8 +261,8 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - [x] Implement backup_service.py with tar.gz creation
 - [ ] Implement watcher_service.py with watchdog + debouncing
 - [ ] Implement diff_service.py
-- [ ] Implement restore_service.py
-- [ ] Implement docker_service.py for container restart
+- [x] Implement restore_service.py
+- [x] Implement docker_service.py for container restart
 - [ ] Implement retention_service.py
 - [ ] Create management commands (runapscheduler, runwatcher)
 - [ ] Build dashboard, settings, diff viewer templates
