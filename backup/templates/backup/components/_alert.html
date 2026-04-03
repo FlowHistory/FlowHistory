@@ -1,0 +1,21 @@
+{% if tags == "success" %}
+<div class="mb-4 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200" role="alert">
+  <span>{{ message }}</span>
+  <button type="button" onclick="this.parentElement.remove()" class="ml-4 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200">&times;</button>
+</div>
+{% elif tags == "error" or tags == "danger" %}
+<div class="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200" role="alert">
+  <span>{{ message }}</span>
+  <button type="button" onclick="this.parentElement.remove()" class="ml-4 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200">&times;</button>
+</div>
+{% elif tags == "warning" %}
+<div class="mb-4 flex items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200" role="alert">
+  <span>{{ message }}</span>
+  <button type="button" onclick="this.parentElement.remove()" class="ml-4 text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200">&times;</button>
+</div>
+{% else %}
+<div class="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200" role="alert">
+  <span>{{ message }}</span>
+  <button type="button" onclick="this.parentElement.remove()" class="ml-4 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">&times;</button>
+</div>
+{% endif %}

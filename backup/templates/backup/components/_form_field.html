@@ -1,0 +1,13 @@
+{% if field.field.widget.input_type == "checkbox" %}
+<div class="flex items-center gap-2">
+  {{ field }}
+  <label for="{{ field.id_for_label }}" class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+</div>
+{% else %}
+<div>
+  <label for="{{ field.id_for_label }}" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+</div>
+{% endif %}

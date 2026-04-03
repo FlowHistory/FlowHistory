@@ -1,7 +1,7 @@
 # ADR 0008: Tailwind CSS Migration and Template Componentization
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 

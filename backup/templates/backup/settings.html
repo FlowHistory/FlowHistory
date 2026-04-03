@@ -3,154 +3,76 @@
 {% block title %}Settings — Node-RED Backup{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Settings</h1>
-  <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+<div class="mb-4 flex items-center justify-between">
+  <h1 class="text-xl font-semibold">Settings</h1>
+  <a href="{% url 'dashboard' %}" class="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Back to Dashboard</a>
 </div>
 
 <form method="post">
   {% csrf_token %}
 
   <!-- General -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">General</h2></div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
-          {{ form.name }}
-          {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
-        </div>
-        <div class="col-md-6">
-          <label for="{{ form.flows_path.id_for_label }}" class="form-label">{{ form.flows_path.label }}</label>
-          {{ form.flows_path }}
-          <div class="form-text">{{ form.flows_path.help_text }}</div>
-          {% if form.flows_path.errors %}<div class="invalid-feedback d-block">{{ form.flows_path.errors.0 }}</div>{% endif %}
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="General" extra_class="mb-3" %}
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {% include "backup/components/_form_field.html" with field=form.name %}
+      {% include "backup/components/_form_field.html" with field=form.flows_path %}
     </div>
-  </div>
+  {% include "backup/components/_card_section_end.html" %}
 
   <!-- Schedule -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">Schedule</h2></div>
-    <div class="card-body">
-      <div class="alert alert-info small mb-3">
-        Changes to schedule frequency or time require a container restart to take effect.
-      </div>
-      <div class="mb-3">
-        <div class="form-check">
-          {{ form.is_active }}
-          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-        </div>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="{{ form.backup_frequency.id_for_label }}" class="form-label">{{ form.backup_frequency.label }}</label>
-          {{ form.backup_frequency }}
-          {% if form.backup_frequency.errors %}<div class="invalid-feedback d-block">{{ form.backup_frequency.errors.0 }}</div>{% endif %}
-        </div>
-        <div class="col-md-4">
-          <label for="{{ form.backup_time.id_for_label }}" class="form-label">{{ form.backup_time.label }}</label>
-          {{ form.backup_time }}
-          <div class="form-text">{{ form.backup_time.help_text }}</div>
-          {% if form.backup_time.errors %}<div class="invalid-feedback d-block">{{ form.backup_time.errors.0 }}</div>{% endif %}
-        </div>
-        <div class="col-md-4">
-          <label for="{{ form.backup_day.id_for_label }}" class="form-label">{{ form.backup_day.label }}</label>
-          {{ form.backup_day }}
-          <div class="form-text">{{ form.backup_day.help_text }}</div>
-          {% if form.backup_day.errors %}<div class="invalid-feedback d-block">{{ form.backup_day.errors.0 }}</div>{% endif %}
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="Schedule" extra_class="mb-3" %}
+    <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+      Changes to schedule frequency or time require a container restart to take effect.
     </div>
-  </div>
+    <div class="mb-4">
+      {% include "backup/components/_form_field.html" with field=form.is_active %}
+    </div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      {% include "backup/components/_form_field.html" with field=form.backup_frequency %}
+      {% include "backup/components/_form_field.html" with field=form.backup_time %}
+      {% include "backup/components/_form_field.html" with field=form.backup_day %}
+    </div>
+  {% include "backup/components/_card_section_end.html" %}
 
   <!-- File Watching -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">File Watching</h2></div>
-    <div class="card-body">
-      <div class="mb-3">
-        <div class="form-check">
-          {{ form.watch_enabled }}
-          <label class="form-check-label" for="{{ form.watch_enabled.id_for_label }}">{{ form.watch_enabled.label }}</label>
-        </div>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="{{ form.watch_debounce_seconds.id_for_label }}" class="form-label">{{ form.watch_debounce_seconds.label }}</label>
-          {{ form.watch_debounce_seconds }}
-          <div class="form-text">{{ form.watch_debounce_seconds.help_text }}</div>
-          {% if form.watch_debounce_seconds.errors %}<div class="invalid-feedback d-block">{{ form.watch_debounce_seconds.errors.0 }}</div>{% endif %}
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="File Watching" extra_class="mb-3" %}
+    <div class="mb-4">
+      {% include "backup/components/_form_field.html" with field=form.watch_enabled %}
     </div>
-  </div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      {% include "backup/components/_form_field.html" with field=form.watch_debounce_seconds %}
+    </div>
+  {% include "backup/components/_card_section_end.html" %}
 
   <!-- Backup Contents -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">Backup Contents</h2></div>
-    <div class="card-body">
-      <div class="mb-2">
-        <div class="form-check">
-          {{ form.backup_credentials }}
-          <label class="form-check-label" for="{{ form.backup_credentials.id_for_label }}">{{ form.backup_credentials.label }}</label>
-        </div>
-      </div>
-      <div>
-        <div class="form-check">
-          {{ form.backup_settings }}
-          <label class="form-check-label" for="{{ form.backup_settings.id_for_label }}">{{ form.backup_settings.label }}</label>
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="Backup Contents" extra_class="mb-3" %}
+    <div class="space-y-2">
+      {% include "backup/components/_form_field.html" with field=form.backup_credentials %}
+      {% include "backup/components/_form_field.html" with field=form.backup_settings %}
     </div>
-  </div>
+  {% include "backup/components/_card_section_end.html" %}
 
   <!-- Retention -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">Retention</h2></div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label for="{{ form.max_backups.id_for_label }}" class="form-label">{{ form.max_backups.label }}</label>
-          {{ form.max_backups }}
-          <div class="form-text">{{ form.max_backups.help_text }}</div>
-          {% if form.max_backups.errors %}<div class="invalid-feedback d-block">{{ form.max_backups.errors.0 }}</div>{% endif %}
-        </div>
-        <div class="col-md-6">
-          <label for="{{ form.max_age_days.id_for_label }}" class="form-label">{{ form.max_age_days.label }}</label>
-          {{ form.max_age_days }}
-          <div class="form-text">{{ form.max_age_days.help_text }}</div>
-          {% if form.max_age_days.errors %}<div class="invalid-feedback d-block">{{ form.max_age_days.errors.0 }}</div>{% endif %}
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="Retention" extra_class="mb-3" %}
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {% include "backup/components/_form_field.html" with field=form.max_backups %}
+      {% include "backup/components/_form_field.html" with field=form.max_age_days %}
     </div>
-  </div>
+  {% include "backup/components/_card_section_end.html" %}
 
   <!-- Restore -->
-  <div class="card mb-3">
-    <div class="card-header"><h2 class="h6 mb-0">Restore</h2></div>
-    <div class="card-body">
-      <div class="mb-3">
-        <div class="form-check">
-          {{ form.restart_on_restore }}
-          <label class="form-check-label" for="{{ form.restart_on_restore.id_for_label }}">{{ form.restart_on_restore.label }}</label>
-        </div>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label for="{{ form.nodered_container_name.id_for_label }}" class="form-label">{{ form.nodered_container_name.label }}</label>
-          {{ form.nodered_container_name }}
-          <div class="form-text">{{ form.nodered_container_name.help_text }}</div>
-          {% if form.nodered_container_name.errors %}<div class="invalid-feedback d-block">{{ form.nodered_container_name.errors.0 }}</div>{% endif %}
-        </div>
-      </div>
+  {% include "backup/components/_card_section_start.html" with title="Restore" extra_class="mb-3" %}
+    <div class="mb-4">
+      {% include "backup/components/_form_field.html" with field=form.restart_on_restore %}
     </div>
-  </div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {% include "backup/components/_form_field.html" with field=form.nodered_container_name %}
+    </div>
+  {% include "backup/components/_card_section_end.html" %}
 
-  <div class="d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save Settings</button>
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+  <div class="flex gap-2">
+    <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Save Settings</button>
+    <a href="{% url 'dashboard' %}" class="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">Cancel</a>
   </div>
 </form>
 {% endblock %}

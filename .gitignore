@@ -17,5 +17,8 @@ staticfiles/
 data/
 backups/
 
+# Tailwind CSS (generated during Docker build)
+backup/static/backup/css/tailwind.css
+
 # Environment
 .env

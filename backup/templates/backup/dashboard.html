@@ -3,170 +3,83 @@
 {% block title %}Dashboard — Node-RED Backup{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Dashboard</h1>
-  <button class="btn btn-primary" id="btn-backup" onclick="createBackup()">Create Backup</button>
+<div class="mb-4 flex items-center justify-between">
+  <h1 class="text-xl font-semibold">Dashboard</h1>
+  <button class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" id="btn-backup" data-url="{% url 'api_create_backup' %}" onclick="createBackup()">Create Backup</button>
 </div>
 
 <!-- Status Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-sm-6 col-lg-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-body-secondary small mb-1">Instance</div>
-        <div class="fw-semibold">{{ config.name }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-body-secondary small mb-1">Flows File</div>
-        <div class="fw-semibold">
-          {% if flows_accessible %}
-          <span class="text-success">Accessible</span>
-          {% else %}
-          <span class="text-danger">Not Found</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-body-secondary small mb-1">Total Backups</div>
-        <div class="fw-semibold">{{ backup_count }}</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-body-secondary small mb-1">Last Backup</div>
-        <div class="fw-semibold">
-          {% if last_backup %}
-          {{ last_backup.created_at|timesince }} ago
-          {% else %}
-          Never
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
+<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  {% include "backup/components/_stat_card.html" with label="Instance" value=config.name %}
+  {% if flows_accessible %}
+  {% include "backup/components/_stat_card.html" with label="Flows File" value="Accessible" value_class="text-green-500" %}
+  {% else %}
+  {% include "backup/components/_stat_card.html" with label="Flows File" value="Not Found" value_class="text-red-500" %}
+  {% endif %}
+  {% include "backup/components/_stat_card.html" with label="Total Backups" value=backup_count %}
+  {% if last_backup %}
+  {% include "backup/components/_stat_card.html" with label="Last Backup" value=last_backup.created_at|timesince %}
+  {% else %}
+  {% include "backup/components/_stat_card.html" with label="Last Backup" value="Never" %}
+  {% endif %}
 </div>
 
 <!-- Backup History Table -->
-<div class="card">
-  <div class="card-header">
-    <h2 class="h6 mb-0">Backup History</h2>
+{% include "backup/components/_card_section_start.html" with title="Backup History" body_class="p-0" %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Date</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Trigger</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Label</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Size</th>
+          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</th>
+          <th class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+        {% for backup in backups %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <td class="px-4 py-2">
+            <a href="{% url 'backup_detail' backup.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
+            {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              {% if backup.changes_summary.tabs_added %}+{{ backup.changes_summary.tabs_added|length }} tab{{ backup.changes_summary.tabs_added|length|pluralize }}{% endif %}
+              {% if backup.changes_summary.tabs_removed %}{% if backup.changes_summary.tabs_added %}, {% endif %}-{{ backup.changes_summary.tabs_removed|length }} tab{{ backup.changes_summary.tabs_removed|length|pluralize }}{% endif %}
+              {% if backup.changes_summary.tabs_modified %}{% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed %}, {% endif %}{{ backup.changes_summary.tabs_modified|length }} modified{% endif %}
+            </div>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">{% include "backup/components/_badge.html" with text=backup.get_trigger_display variant="secondary" %}</td>
+          <td class="px-4 py-2">{{ backup.label|default:"-" }}</td>
+          <td class="px-4 py-2">{{ backup.file_size|filesizeformat }}</td>
+          <td class="px-4 py-2">
+            {% if backup.status == "success" %}
+            {% include "backup/components/_badge.html" with text="Success" variant="success" %}
+            {% else %}
+            {% include "backup/components/_badge.html" with text="Failed" variant="danger" %}
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-right">
+            {% if backup.status == "success" %}
+            <button class="rounded-md border border-yellow-500 px-3 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/30" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">
+              Restore
+            </button>
+            {% else %}
+            <span class="text-xs text-gray-400">&mdash;</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+            No backups yet. Click "Create Backup" to get started.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Trigger</th>
-            <th>Label</th>
-            <th>Size</th>
-            <th>Status</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for backup in backups %}
-          <tr>
-            <td>
-              <a href="{% url 'backup_detail' backup.pk %}" class="text-decoration-none">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
-              {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
-              <div class="small text-body-secondary">
-                {% if backup.changes_summary.tabs_added %}+{{ backup.changes_summary.tabs_added|length }} tab{{ backup.changes_summary.tabs_added|length|pluralize }}{% endif %}
-                {% if backup.changes_summary.tabs_removed %}{% if backup.changes_summary.tabs_added %}, {% endif %}-{{ backup.changes_summary.tabs_removed|length }} tab{{ backup.changes_summary.tabs_removed|length|pluralize }}{% endif %}
-                {% if backup.changes_summary.tabs_modified %}{% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed %}, {% endif %}{{ backup.changes_summary.tabs_modified|length }} modified{% endif %}
-              </div>
-              {% endif %}
-            </td>
-            <td><span class="badge bg-secondary">{{ backup.get_trigger_display }}</span></td>
-            <td>{{ backup.label|default:"-" }}</td>
-            <td>{{ backup.file_size|filesizeformat }}</td>
-            <td>
-              {% if backup.status == "success" %}
-              <span class="badge bg-success">Success</span>
-              {% else %}
-              <span class="badge bg-danger">Failed</span>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if backup.status == "success" %}
-              <button class="btn btn-sm btn-outline-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">
-                Restore
-              </button>
-              {% else %}
-              <span class="text-body-secondary small">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-body-secondary py-4">
-              No backups yet. Click "Create Backup" to get started.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<script>
-function createBackup() {
-  const btn = document.getElementById('btn-backup');
-  btn.disabled = true;
-  btn.textContent = 'Creating...';
-  fetch('{% url "api_create_backup" %}', {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': '{{ csrf_token }}',
-    },
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.status === 'error') {
-      alert(data.message || 'Backup not yet implemented');
-    }
-    location.reload();
-  })
-  .catch(() => {
-    alert('Request failed');
-    btn.disabled = false;
-    btn.textContent = 'Create Backup';
-  });
-}
-
-function restoreBackup(id, filename) {
-  if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {
-    return;
-  }
-  fetch('/api/restore/' + id + '/', {
-    method: 'POST',
-    headers: {
-      'X-CSRFToken': '{{ csrf_token }}',
-    },
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.status === 'success') {
-      alert('Restore complete. Files restored: ' + data.restore.files_restored.join(', '));
-    } else {
-      alert('Restore failed: ' + (data.message || 'Unknown error'));
-    }
-    location.reload();
-  })
-  .catch(() => {
-    alert('Request failed');
-  });
-}
-</script>
+{% include "backup/components/_card_section_end.html" %}
 {% endblock %}

@@ -1,0 +1,12 @@
+<nav class="mb-3 text-sm" aria-label="breadcrumb">
+  <ol class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+    {% for item in items %}
+    {% if not forloop.last %}
+    <li><a href="{{ item.url }}" class="hover:text-gray-900 dark:hover:text-gray-200">{{ item.label }}</a></li>
+    <li>/</li>
+    {% else %}
+    <li class="text-gray-900 dark:text-gray-200">{{ item.label }}</li>
+    {% endif %}
+    {% endfor %}
+  </ol>
+</nav>

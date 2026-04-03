@@ -53,11 +53,23 @@ def backup_detail(request, backup_id):
     # Get restore records for this backup
     restores = RestoreRecord.objects.filter(backup=backup)
 
+    # Build includes string
+    includes = ["flows.json"]
+    if backup.includes_credentials:
+        includes.append("credentials")
+    if backup.includes_settings:
+        includes.append("settings")
+
     return render(request, "backup/detail.html", {
         "config": config,
         "backup": backup,
         "prev_backup": prev_backup,
         "restores": restores,
+        "backup_includes": ", ".join(includes),
+        "breadcrumb_items": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Backup Detail"},
+        ],
     })
 
 
