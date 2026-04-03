@@ -22,3 +22,5 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0003](0003-dockerization-and-basic-auth.md) | Dockerization and Basic Auth | **Implemented** |
 | [0004](0004-backup-service-and-flow-parser.md) | Backup Service and Flow Parser | **Implemented** |
 | [0005](0005-restore-service-and-docker-service.md) | Restore Service and Docker Service | **Implemented** |
+| [0006](0006-diff-retention-watcher-services.md) | Diff, Retention, Watcher Services & Commands | **Implemented** |
+| [0007](0007-settings-page.md) | Settings Page | **Proposed** |

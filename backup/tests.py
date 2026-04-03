@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import tarfile
+from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,9 +11,11 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
-from backup.services.backup_service import (
-    _diff_tab_summaries,
-    create_backup,
+from backup.services.backup_service import create_backup
+from backup.services.diff_service import (
+    diff_backup_archives,
+    diff_tab_summaries,
+    parse_flows_from_archive,
 )
 from backup.services.flow_parser import (
     get_tab_names,
@@ -29,8 +32,9 @@ SAMPLE_FLOWS = [
     {"id": "tab1", "type": "tab", "label": "Home Automation"},
     {"id": "tab2", "type": "tab", "label": "API Endpoints"},
     {"id": "sf1", "type": "subflow", "name": "Error Handler"},
-    {"id": "n1", "type": "inject", "z": "tab1"},
-    {"id": "n2", "type": "debug", "z": "tab1"},
+    {"id": "g1", "type": "group", "name": "Sensors", "z": "tab1"},
+    {"id": "n1", "type": "inject", "z": "tab1", "g": "g1", "name": "Trigger", "x": 100, "y": 200},
+    {"id": "n2", "type": "debug", "z": "tab1", "name": "Log"},
     {"id": "n3", "type": "http in", "z": "tab2"},
     {"id": "n4", "type": "function", "z": "sf1"},
     {"id": "cfg1", "type": "mqtt-broker"},  # no z → config node
@@ -53,7 +57,7 @@ class FlowParserParseFlowsTest(TestCase):
     def test_node_counts_per_tab(self):
         result = parse_flows(SAMPLE_FLOWS)
         tab_map = {t["label"]: t["node_count"] for t in result["tabs"]}
-        self.assertEqual(tab_map["Home Automation"], 2)
+        self.assertEqual(tab_map["Home Automation"], 3)  # n1, n2, g1 (group is a node)
         self.assertEqual(tab_map["API Endpoints"], 1)
 
     def test_subflow_node_count(self):
@@ -81,6 +85,30 @@ class FlowParserParseFlowsTest(TestCase):
         nodes = [{"id": "t1", "type": "tab"}]
         result = parse_flows(nodes)
         self.assertEqual(result["tabs"][0]["label"], "Unnamed")
+
+    def test_groups_tracked(self):
+        result = parse_flows(SAMPLE_FLOWS)
+        self.assertIn("g1", result["groups"])
+        self.assertEqual(result["groups"]["g1"]["name"], "Sensors")
+        self.assertEqual(result["groups"]["g1"]["tab_id"], "tab1")
+
+    def test_nodes_by_id_populated(self):
+        result = parse_flows(SAMPLE_FLOWS)
+        self.assertIn("n1", result["nodes_by_id"])
+        self.assertEqual(result["nodes_by_id"]["n1"]["type"], "inject")
+        self.assertEqual(result["nodes_by_id"]["n1"]["z"], "tab1")
+        self.assertEqual(result["nodes_by_id"]["n1"]["g"], "g1")
+        # Config nodes also indexed
+        self.assertIn("cfg1", result["nodes_by_id"])
+
+    def test_content_fields_exclude_position(self):
+        result = parse_flows(SAMPLE_FLOWS)
+        n1_data = result["nodes_by_id"]["n1"]["_data"]
+        self.assertNotIn("x", n1_data)
+        self.assertNotIn("y", n1_data)
+        self.assertIn("id", n1_data)
+        self.assertIn("type", n1_data)
+        self.assertIn("name", n1_data)
 
 
 class FlowParserFileTest(TestCase):
@@ -121,45 +149,151 @@ class FlowParserFileTest(TestCase):
 
 
 class DiffTabSummariesTest(TestCase):
+    def _make_parsed(self, nodes):
+        """Helper: run parse_flows to get a full parsed structure for diff tests."""
+        return parse_flows(nodes)
+
     def test_tabs_added(self):
-        prev = {"tabs": [{"id": "t1", "label": "A", "node_count": 3}]}
-        curr = {
-            "tabs": [
-                {"id": "t1", "label": "A", "node_count": 3},
-                {"id": "t2", "label": "B", "node_count": 5},
-            ]
-        }
-        diff = _diff_tab_summaries(prev, curr)
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+            {"id": "t2", "type": "tab", "label": "B"},
+            {"id": "n2", "type": "debug", "z": "t2"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_added"], ["B"])
         self.assertEqual(diff["tabs_removed"], [])
         self.assertEqual(diff["tabs_modified"], [])
 
     def test_tabs_removed(self):
-        prev = {
-            "tabs": [
-                {"id": "t1", "label": "A", "node_count": 3},
-                {"id": "t2", "label": "B", "node_count": 5},
-            ]
-        }
-        curr = {"tabs": [{"id": "t1", "label": "A", "node_count": 3}]}
-        diff = _diff_tab_summaries(prev, curr)
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "t2", "type": "tab", "label": "B"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_removed"], ["B"])
         self.assertEqual(diff["tabs_added"], [])
 
-    def test_tabs_modified(self):
-        prev = {"tabs": [{"id": "t1", "label": "A", "node_count": 3}]}
-        curr = {"tabs": [{"id": "t1", "label": "A", "node_count": 7}]}
-        diff = _diff_tab_summaries(prev, curr)
+    def test_tabs_modified_node_count_change(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+            {"id": "n2", "type": "debug", "z": "t1"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
         self.assertEqual(len(diff["tabs_modified"]), 1)
-        self.assertEqual(diff["tabs_modified"][0]["nodes_before"], 3)
-        self.assertEqual(diff["tabs_modified"][0]["nodes_after"], 7)
+        self.assertEqual(diff["tabs_modified"][0]["nodes_before"], 1)
+        self.assertEqual(diff["tabs_modified"][0]["nodes_after"], 2)
+        self.assertEqual(len(diff["tabs_modified"][0]["nodes_added"]), 1)
+        self.assertEqual(diff["tabs_modified"][0]["nodes_added"][0]["type"], "debug")
 
     def test_no_changes(self):
-        tabs = {"tabs": [{"id": "t1", "label": "A", "node_count": 3}]}
-        diff = _diff_tab_summaries(tabs, tabs)
+        parsed = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "A"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        diff = diff_tab_summaries(parsed, parsed)
         self.assertEqual(diff["tabs_added"], [])
         self.assertEqual(diff["tabs_removed"], [])
         self.assertEqual(diff["tabs_modified"], [])
+
+    def test_node_added_in_tab(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+            {"id": "n2", "type": "function", "z": "t1", "name": "Process"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]
+        self.assertEqual(len(mod["nodes_added"]), 1)
+        self.assertEqual(mod["nodes_added"][0]["type"], "function")
+        self.assertEqual(mod["nodes_added"][0]["name"], "Process")
+
+    def test_node_removed_from_tab(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+            {"id": "n2", "type": "debug", "z": "t1", "name": "Logger"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]
+        self.assertEqual(len(mod["nodes_removed"]), 1)
+        self.assertEqual(mod["nodes_removed"][0]["type"], "debug")
+        self.assertEqual(mod["nodes_removed"][0]["name"], "Logger")
+
+    def test_node_modified_detects_field_change(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "function", "z": "t1", "name": "Old Name", "func": "return msg;"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "function", "z": "t1", "name": "New Name", "func": "msg.payload = 1; return msg;"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]
+        self.assertEqual(len(mod["nodes_modified"]), 1)
+        self.assertEqual(mod["nodes_modified"][0]["name"], "New Name")
+        self.assertIn("func", mod["nodes_modified"][0]["changed_fields"])
+        self.assertIn("name", mod["nodes_modified"][0]["changed_fields"])
+
+    def test_node_position_change_ignored(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1", "x": 100, "y": 200},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "n1", "type": "inject", "z": "t1", "x": 300, "y": 400},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        self.assertEqual(diff["tabs_modified"], [])
+
+    def test_node_with_group_shows_group_name(self):
+        prev = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+        ])
+        curr = self._make_parsed([
+            {"id": "t1", "type": "tab", "label": "Home"},
+            {"id": "g1", "type": "group", "name": "Sensors", "z": "t1"},
+            {"id": "n1", "type": "inject", "z": "t1", "g": "g1", "name": "Trigger"},
+        ])
+        diff = diff_tab_summaries(prev, curr)
+        mod = diff["tabs_modified"][0]
+        # Find the inject node (not the group itself)
+        inject_added = [n for n in mod["nodes_added"] if n["type"] == "inject"]
+        self.assertEqual(len(inject_added), 1)
+        self.assertEqual(inject_added[0]["group"], "Sensors")
+
+    def test_backward_compat_no_nodes_by_id(self):
+        """Old parsed data without nodes_by_id falls back to count-only comparison."""
+        prev = {"tabs": [{"id": "t1", "label": "A", "node_count": 3}]}
+        curr = {"tabs": [{"id": "t1", "label": "A", "node_count": 7}]}
+        diff = diff_tab_summaries(prev, curr)
+        self.assertEqual(len(diff["tabs_modified"]), 1)
+        self.assertEqual(diff["tabs_modified"][0]["nodes_before"], 3)
+        self.assertEqual(diff["tabs_modified"][0]["nodes_after"], 7)
 
 
 class BackupServiceTest(TestCase):
@@ -249,6 +383,22 @@ class BackupServiceTest(TestCase):
         record = create_backup(config=self.config, trigger="manual")
         self.assertIn("New Tab", record.changes_summary.get("tabs_added", []))
 
+    def test_changes_summary_detects_node_modification(self):
+        create_backup(config=self.config, trigger="manual")
+        # Modify an existing node's name (n1 in SAMPLE_FLOWS)
+        modified_flows = []
+        for node in SAMPLE_FLOWS:
+            if node.get("id") == "n1":
+                node = {**node, "name": "Renamed Trigger"}
+            modified_flows.append(node)
+        self.flows_file.write_text(json.dumps(modified_flows))
+        record = create_backup(config=self.config, trigger="manual")
+        tabs_mod = record.changes_summary.get("tabs_modified", [])
+        self.assertTrue(len(tabs_mod) > 0)
+        home_tab = [t for t in tabs_mod if t["label"] == "Home Automation"]
+        self.assertEqual(len(home_tab), 1)
+        self.assertTrue(len(home_tab[0]["nodes_modified"]) > 0)
+
     def test_includes_credentials_when_present(self):
         cred_file = self.tmp_dir / "flows_cred.json"
         cred_file.write_text('{"encrypted": true}')
@@ -272,6 +422,7 @@ class BackupServiceTest(TestCase):
         cred_file.unlink()
 
 
+@override_settings(REQUIRE_AUTH=False)
 class ApiCreateBackupTest(TestCase):
     def setUp(self):
         self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_api"
@@ -481,6 +632,7 @@ class RestoreServiceTest(TestCase):
 # Restore API
 # ---------------------------------------------------------------------------
 
+@override_settings(REQUIRE_AUTH=False)
 class ApiRestoreBackupTest(TestCase):
     def setUp(self):
         self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_restore_api"
@@ -523,3 +675,259 @@ class ApiRestoreBackupTest(TestCase):
         resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
         data = resp.json()
         self.assertIn("safety_backup_id", data["restore"])
+
+
+# ---------------------------------------------------------------------------
+# Diff Service
+# ---------------------------------------------------------------------------
+
+class DiffServiceArchiveTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_diff"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        for f in self.tmp_dir.iterdir():
+            f.unlink()
+        self.tmp_dir.rmdir()
+
+    def test_parse_flows_from_archive(self):
+        record = create_backup(config=self.config, trigger="manual")
+        parsed = parse_flows_from_archive(record.file_path)
+        self.assertIsNotNone(parsed)
+        self.assertEqual(len(parsed["tabs"]), 2)
+
+    def test_diff_backup_archives_detects_added_tab(self):
+        record_a = create_backup(config=self.config, trigger="manual")
+        new_flows = SAMPLE_FLOWS + [{"id": "tab3", "type": "tab", "label": "New Tab"}]
+        self.flows_file.write_text(json.dumps(new_flows))
+        record_b = create_backup(config=self.config, trigger="manual")
+        diff = diff_backup_archives(record_a.file_path, record_b.file_path)
+        self.assertIn("New Tab", diff["tabs_added"])
+        self.assertIn("prev", diff)
+        self.assertIn("current", diff)
+
+    def test_diff_backup_archives_no_changes(self):
+        record_a = create_backup(config=self.config, trigger="manual")
+        record_b = create_backup(config=self.config, trigger="manual")
+        diff = diff_backup_archives(record_a.file_path, record_b.file_path)
+        self.assertEqual(diff["tabs_added"], [])
+        self.assertEqual(diff["tabs_removed"], [])
+        self.assertEqual(diff["tabs_modified"], [])
+
+
+# ---------------------------------------------------------------------------
+# Retention Service
+# ---------------------------------------------------------------------------
+
+class RetentionServiceTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_retention"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+            max_backups=3,
+            max_age_days=7,
+        )
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        for f in self.tmp_dir.iterdir():
+            f.unlink()
+        self.tmp_dir.rmdir()
+
+    def _create_backups(self, count, **kwargs):
+        """Create multiple manual backups with unique content.
+
+        Mocks apply_retention during creation so retention doesn't run
+        prematurely (backup_service calls it after each success).
+        """
+        records = []
+        with patch("backup.services.retention_service.apply_retention"):
+            for i in range(count):
+                flows = SAMPLE_FLOWS + [{"id": f"extra_{i}", "type": "inject", "z": "tab1"}]
+                self.flows_file.write_text(json.dumps(flows))
+                record = create_backup(config=self.config, trigger="manual")
+                if record and kwargs.get("age_days"):
+                    # Backdate the record
+                    record.created_at = record.created_at - timedelta(days=kwargs["age_days"])
+                    record.save(update_fields=["created_at"])
+                records.append(record)
+        return records
+
+    def test_delete_by_count(self):
+        from backup.services.retention_service import apply_retention
+
+        self._create_backups(5)
+        self.assertEqual(BackupRecord.objects.filter(status="success").count(), 5)
+        result = apply_retention(self.config)
+        self.assertEqual(BackupRecord.objects.filter(status="success").count(), 3)
+        self.assertEqual(result["deleted_by_count"], 2)
+
+    def test_delete_by_age(self):
+        from backup.services.retention_service import apply_retention
+
+        records = self._create_backups(2)
+        # Backdate both records to 10 days ago
+        for r in records:
+            r.created_at = r.created_at - timedelta(days=10)
+            r.save(update_fields=["created_at"])
+        result = apply_retention(self.config)
+        self.assertEqual(result["deleted_by_age"], 2)
+        self.assertEqual(BackupRecord.objects.filter(status="success").count(), 0)
+
+    def test_protects_recent_pre_restore(self):
+        from backup.services.retention_service import apply_retention
+
+        # Create a pre_restore backup
+        record = create_backup(config=self.config, trigger="pre_restore")
+        # Create enough to exceed max_backups
+        self._create_backups(4)
+        result = apply_retention(self.config)
+        # pre_restore should still exist
+        self.assertTrue(
+            BackupRecord.objects.filter(pk=record.pk).exists()
+        )
+
+    def test_disk_file_deleted(self):
+        from backup.services.retention_service import apply_retention
+
+        records = self._create_backups(5)
+        oldest_path = Path(records[0].file_path)
+        self.assertTrue(oldest_path.is_file())
+        apply_retention(self.config)
+        self.assertFalse(oldest_path.is_file())
+
+    def test_no_deletions_within_limits(self):
+        from backup.services.retention_service import apply_retention
+
+        self._create_backups(2)
+        result = apply_retention(self.config)
+        self.assertEqual(result["deleted_by_count"], 0)
+        self.assertEqual(result["deleted_by_age"], 0)
+
+
+# ---------------------------------------------------------------------------
+# Watcher Service
+# ---------------------------------------------------------------------------
+
+class WatcherHandlerTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_watcher"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+            watch_enabled=True,
+            watch_debounce_seconds=1,
+        )
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        for f in self.tmp_dir.iterdir():
+            f.unlink()
+        self.tmp_dir.rmdir()
+
+    def test_ignores_directory_events(self):
+        from backup.services.watcher_service import _FlowsHandler
+
+        handler = _FlowsHandler("flows.json")
+        event = MagicMock()
+        event.is_directory = True
+        event.src_path = str(self.flows_file)
+        handler.on_modified(event)
+        self.assertIsNone(handler._timer)
+
+    def test_ignores_non_flows_files(self):
+        from backup.services.watcher_service import _FlowsHandler
+
+        handler = _FlowsHandler("flows.json")
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = str(self.tmp_dir / "settings.js")
+        handler.on_modified(event)
+        self.assertIsNone(handler._timer)
+
+    def test_starts_timer_on_flows_modified(self):
+        from backup.services.watcher_service import _FlowsHandler
+
+        handler = _FlowsHandler("flows.json")
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = str(self.flows_file)
+        handler.on_modified(event)
+        self.assertIsNotNone(handler._timer)
+        handler._timer.cancel()  # Clean up
+
+    def test_watch_disabled_skips_timer(self):
+        from backup.services.watcher_service import _FlowsHandler
+
+        self.config.watch_enabled = False
+        self.config.save()
+        handler = _FlowsHandler("flows.json")
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = str(self.flows_file)
+        handler.on_modified(event)
+        self.assertIsNone(handler._timer)
+
+    @patch("backup.services.backup_service.create_backup")
+    def test_debounce_complete_creates_backup(self, mock_backup):
+        from backup.services.watcher_service import _FlowsHandler
+
+        mock_backup.return_value = MagicMock(status="success", filename="test.tar.gz")
+        handler = _FlowsHandler("flows.json")
+        handler._on_debounce_complete()
+        mock_backup.assert_called_once()
+        call_kwargs = mock_backup.call_args[1]
+        self.assertEqual(call_kwargs["trigger"], "file_change")
+
+
+# ---------------------------------------------------------------------------
+# Scheduler Command
+# ---------------------------------------------------------------------------
+
+class SchedulerBuildTriggerTest(TestCase):
+    def test_daily_trigger(self):
+        from backup.management.commands.runapscheduler import Command
+
+        config = MagicMock()
+        config.backup_frequency = "daily"
+        config.backup_time = MagicMock(hour=3, minute=0)
+        trigger = Command._build_trigger(config)
+        # CronTrigger should have hour=3, minute=0
+        self.assertIsNotNone(trigger)
+
+    def test_hourly_trigger(self):
+        from backup.management.commands.runapscheduler import Command
+
+        config = MagicMock()
+        config.backup_frequency = "hourly"
+        config.backup_time = MagicMock(hour=3, minute=30)
+        trigger = Command._build_trigger(config)
+        self.assertIsNotNone(trigger)
+
+    def test_weekly_trigger(self):
+        from backup.management.commands.runapscheduler import Command
+
+        config = MagicMock()
+        config.backup_frequency = "weekly"
+        config.backup_time = MagicMock(hour=3, minute=0)
+        config.backup_day = 0
+        trigger = Command._build_trigger(config)
+        self.assertIsNotNone(trigger)

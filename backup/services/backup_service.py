@@ -1,7 +1,6 @@
 """Create and manage Node-RED backup archives."""
 
 import hashlib
-import json
 import logging
 import tarfile
 import uuid
@@ -12,7 +11,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from backup.models import BackupRecord, NodeRedConfig
-from backup.services.flow_parser import get_tab_names, parse_flows, parse_flows_file
+from backup.services.diff_service import diff_tab_summaries, parse_flows_from_archive
+from backup.services.flow_parser import get_tab_names, parse_flows_file
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +91,15 @@ def create_backup(config=None, trigger="manual"):
     config.save(update_fields=["last_successful_backup", "last_backup_error"])
 
     logger.info("Backup created: %s (%d bytes)", filename, archive_size)
+
+    # Run retention cleanup after successful backup
+    try:
+        from backup.services.retention_service import apply_retention
+
+        apply_retention(config)
+    except Exception:
+        logger.warning("Retention cleanup failed after backup", exc_info=True)
+
     return record
 
 
@@ -143,7 +152,7 @@ def _compute_changes(config, flows_path):
 
     # Extract previous flows.json from archive
     try:
-        prev_parsed = _parse_flows_from_archive(last_archive)
+        prev_parsed = parse_flows_from_archive(last_archive)
     except (tarfile.TarError, OSError, KeyError):
         return {}
 
@@ -151,47 +160,7 @@ def _compute_changes(config, flows_path):
     if prev_parsed is None or current_parsed is None:
         return {}
 
-    return _diff_tab_summaries(prev_parsed, current_parsed)
-
-
-def _parse_flows_from_archive(archive_path):
-    """Extract and parse flows.json from a tar.gz backup archive."""
-    with tarfile.open(archive_path, "r:gz") as tar:
-        member = tar.getmember("flows.json")
-        f = tar.extractfile(member)
-        if f is None:
-            return None
-        data = json.loads(f.read())
-        return parse_flows(data)
-
-
-def _diff_tab_summaries(prev, current):
-    """Compare two parsed flow structures and return a changes summary."""
-    prev_tabs = {t["id"]: t for t in prev.get("tabs", [])}
-    curr_tabs = {t["id"]: t for t in current.get("tabs", [])}
-
-    prev_ids = set(prev_tabs.keys())
-    curr_ids = set(curr_tabs.keys())
-
-    added = [curr_tabs[tid]["label"] for tid in (curr_ids - prev_ids)]
-    removed = [prev_tabs[tid]["label"] for tid in (prev_ids - curr_ids)]
-    modified = []
-
-    for tid in prev_ids & curr_ids:
-        prev_count = prev_tabs[tid]["node_count"]
-        curr_count = curr_tabs[tid]["node_count"]
-        if prev_count != curr_count:
-            modified.append({
-                "label": curr_tabs[tid]["label"],
-                "nodes_before": prev_count,
-                "nodes_after": curr_count,
-            })
-
-    return {
-        "tabs_added": added,
-        "tabs_removed": removed,
-        "tabs_modified": modified,
-    }
+    return diff_tab_summaries(prev_parsed, current_parsed)
 
 
 def _cred_path(config):

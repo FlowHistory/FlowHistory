@@ -1,9 +1,10 @@
 import logging
 import os
+from pathlib import Path
 
 from django.conf import settings
-from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.http import FileResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import BackupRecord, NodeRedConfig, RestoreRecord
@@ -33,6 +34,39 @@ def dashboard(request):
         "flows_accessible": flows_accessible,
         "last_backup": last_backup,
     })
+
+
+@require_GET
+def backup_detail(request, backup_id):
+    config = _get_or_create_config()
+    backup = get_object_or_404(BackupRecord, pk=backup_id, config=config)
+
+    # Get previous backup for context
+    prev_backup = (
+        BackupRecord.objects
+        .filter(config=config, status="success", created_at__lt=backup.created_at)
+        .first()
+    )
+
+    # Get restore records for this backup
+    restores = RestoreRecord.objects.filter(backup=backup)
+
+    return render(request, "backup/detail.html", {
+        "config": config,
+        "backup": backup,
+        "prev_backup": prev_backup,
+        "restores": restores,
+    })
+
+
+@require_GET
+def backup_download(request, backup_id):
+    config = _get_or_create_config()
+    backup = get_object_or_404(BackupRecord, pk=backup_id, config=config, status="success")
+    archive = Path(backup.file_path)
+    if not archive.is_file():
+        return JsonResponse({"status": "error", "message": "Archive not found"}, status=404)
+    return FileResponse(open(archive, "rb"), as_attachment=True, filename=backup.filename)
 
 
 @require_GET

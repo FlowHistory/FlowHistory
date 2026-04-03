@@ -6,6 +6,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Fields excluded from content comparison (visual/positional only)
+_VISUAL_FIELDS = frozenset({"x", "y", "w", "h"})
+
 
 def parse_flows_file(flows_path):
     """Read and parse a flows.json file from disk.
@@ -30,28 +33,31 @@ def parse_flows(nodes):
 
     Returns:
         {
-            "tabs": [
-                {"id": "...", "label": "...", "node_count": N},
-                ...
-            ],
-            "subflows": [
-                {"id": "...", "name": "...", "node_count": N},
-                ...
-            ],
+            "tabs": [{"id", "label", "node_count"}, ...],
+            "subflows": [{"id", "name", "node_count"}, ...],
+            "groups": {group_id: {"id", "name", "tab_id"}, ...},
+            "nodes_by_id": {node_id: {"type", "name", "z", "g", "_data"}, ...},
             "config_nodes": N,
             "global_nodes": N,
             "total_nodes": N,
         }
+
+    The ``nodes_by_id`` dict contains every node except tabs and subflow
+    definitions.  Each entry carries a ``_data`` key holding the node's
+    content-significant fields (everything except positional fields like
+    x/y/w/h) for use by the diff service.
     """
     if not isinstance(nodes, list):
         return _empty_summary()
 
     tabs = {}
     subflows = {}
+    groups = {}
+    nodes_by_id = {}
     config_nodes = 0
     global_nodes = 0
 
-    # First pass: identify tabs and subflows
+    # First pass: identify tabs, subflows, and groups
     for node in nodes:
         node_type = node.get("type", "")
         node_id = node.get("id", "")
@@ -68,14 +74,32 @@ def parse_flows(nodes):
                 "name": node.get("name", "Unnamed"),
                 "node_count": 0,
             }
+        elif node_type == "group":
+            groups[node_id] = {
+                "id": node_id,
+                "name": node.get("name", ""),
+                "tab_id": node.get("z", ""),
+            }
 
-    # Second pass: count nodes per tab/subflow
+    # Second pass: count nodes per tab/subflow and build node index
     for node in nodes:
         node_type = node.get("type", "")
+        node_id = node.get("id", "")
+
         if node_type in ("tab", "subflow"):
             continue
 
         parent_id = node.get("z", "")
+        group_id = node.get("g", "")
+
+        # Store in nodes_by_id for diffing
+        nodes_by_id[node_id] = {
+            "type": node_type,
+            "name": node.get("name", ""),
+            "z": parent_id,
+            "g": group_id,
+            "_data": _content_fields(node),
+        }
 
         if parent_id in tabs:
             tabs[parent_id]["node_count"] += 1
@@ -98,6 +122,8 @@ def parse_flows(nodes):
     return {
         "tabs": sorted(tabs.values(), key=lambda t: t["label"]),
         "subflows": sorted(subflows.values(), key=lambda s: s["name"]),
+        "groups": groups,
+        "nodes_by_id": nodes_by_id,
         "config_nodes": config_nodes,
         "global_nodes": global_nodes,
         "total_nodes": len(nodes),
@@ -112,10 +138,17 @@ def get_tab_names(flows_path):
     return [tab["label"] for tab in parsed["tabs"]]
 
 
+def _content_fields(node):
+    """Return node dict excluding visual/positional fields for content comparison."""
+    return {k: v for k, v in node.items() if k not in _VISUAL_FIELDS}
+
+
 def _empty_summary():
     return {
         "tabs": [],
         "subflows": [],
+        "groups": {},
+        "nodes_by_id": {},
         "config_nodes": 0,
         "global_nodes": 0,
         "total_nodes": 0,

@@ -77,7 +77,16 @@
         <tbody>
           {% for backup in backups %}
           <tr>
-            <td>{{ backup.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <a href="{% url 'backup_detail' backup.pk %}" class="text-decoration-none">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
+              {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
+              <div class="small text-body-secondary">
+                {% if backup.changes_summary.tabs_added %}+{{ backup.changes_summary.tabs_added|length }} tab{{ backup.changes_summary.tabs_added|length|pluralize }}{% endif %}
+                {% if backup.changes_summary.tabs_removed %}{% if backup.changes_summary.tabs_added %}, {% endif %}-{{ backup.changes_summary.tabs_removed|length }} tab{{ backup.changes_summary.tabs_removed|length|pluralize }}{% endif %}
+                {% if backup.changes_summary.tabs_modified %}{% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed %}, {% endif %}{{ backup.changes_summary.tabs_modified|length }} modified{% endif %}
+              </div>
+              {% endif %}
+            </td>
             <td><span class="badge bg-secondary">{{ backup.get_trigger_display }}</span></td>
             <td>{{ backup.label|default:"-" }}</td>
             <td>{{ backup.file_size|filesizeformat }}</td>

@@ -259,15 +259,17 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - [x] Create models and migrations
 - [x] Implement flow_parser.py
 - [x] Implement backup_service.py with tar.gz creation
-- [ ] Implement watcher_service.py with watchdog + debouncing
-- [ ] Implement diff_service.py
+- [x] Implement watcher_service.py with watchdog + debouncing
+- [x] Implement diff_service.py
 - [x] Implement restore_service.py
 - [x] Implement docker_service.py for container restart
-- [ ] Implement retention_service.py
-- [ ] Create management commands (runapscheduler, runwatcher)
-- [ ] Build dashboard, settings, diff viewer templates
+- [x] Implement retention_service.py
+- [x] Create management commands (runapscheduler, runwatcher)
+- [ ] Build settings template (`/settings/` form for NodeRedConfig)
+- [ ] Build diff viewer template (`/diff/<id>/`)
+- [ ] Dashboard improvements (download, delete, labels, status cards)
 - [x] Create Dockerfile, docker-compose.yml, entrypoint.sh
-- [ ] Add notification service
+- [ ] Add notification service (Discord, Slack, Telegram, Pushbullet, HA)
 - [x] Add optional auth middleware
-- [ ] Write tests
+- [x] Write tests (79 tests across all services, running in Docker)
 - [x] Create README.md and .env.example

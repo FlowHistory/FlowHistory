@@ -1,0 +1,258 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Backup {{ backup.created_at|date:"Y-m-d H:i" }} — Node-RED Backup{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Backup Detail</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">
+    {{ backup.created_at|date:"Y-m-d H:i:s" }}
+    {% if backup.label %}
+    <small class="text-body-secondary">&mdash; {{ backup.label }}</small>
+    {% endif %}
+  </h1>
+  <div class="d-flex gap-2">
+    {% if backup.status == "success" %}
+    <a href="{% url 'backup_download' backup.pk %}" class="btn btn-sm btn-outline-secondary">Download</a>
+    <button class="btn btn-sm btn-outline-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Info Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small mb-1">Status</div>
+        <div class="fw-semibold">
+          {% if backup.status == "success" %}
+          <span class="text-success">Success</span>
+          {% else %}
+          <span class="text-danger">Failed</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small mb-1">Trigger</div>
+        <div class="fw-semibold">{{ backup.get_trigger_display }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small mb-1">Size</div>
+        <div class="fw-semibold">{{ backup.file_size|filesizeformat }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-body-secondary small mb-1">Includes</div>
+        <div class="fw-semibold">
+          flows.json{% if backup.includes_credentials %}, credentials{% endif %}{% if backup.includes_settings %}, settings{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if backup.error_message %}
+<div class="alert alert-danger mb-4">
+  <strong>Error:</strong> {{ backup.error_message }}
+</div>
+{% endif %}
+
+<!-- Changes Summary -->
+{% if backup.changes_summary %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="h6 mb-0">Changes Since Previous Backup</h2>
+  </div>
+  <div class="card-body">
+    {% if backup.changes_summary.tabs_added %}
+    <div class="mb-3">
+      <h3 class="h6 text-success">Tabs Added</h3>
+      <ul class="mb-0">
+        {% for tab in backup.changes_summary.tabs_added %}
+        <li>{{ tab }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if backup.changes_summary.tabs_removed %}
+    <div class="mb-3">
+      <h3 class="h6 text-danger">Tabs Removed</h3>
+      <ul class="mb-0">
+        {% for tab in backup.changes_summary.tabs_removed %}
+        <li>{{ tab }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if backup.changes_summary.tabs_modified %}
+    <div class="mb-3">
+      <h3 class="h6 text-warning">Tabs Modified</h3>
+      {% for tab in backup.changes_summary.tabs_modified %}
+      <div class="card card-body bg-body-tertiary mb-2">
+        <div class="fw-semibold mb-1">{{ tab.label }}</div>
+
+        {% if tab.nodes_added %}
+        <div class="mb-2">
+          <span class="text-success small fw-semibold">Added:</span>
+          {% for node in tab.nodes_added %}
+          <span class="badge bg-success-subtle text-success-emphasis me-1">
+            {{ node.type }}{% if node.name %}: {{ node.name }}{% endif %}{% if node.group %} <span class="opacity-75">({{ node.group }})</span>{% endif %}
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if tab.nodes_removed %}
+        <div class="mb-2">
+          <span class="text-danger small fw-semibold">Removed:</span>
+          {% for node in tab.nodes_removed %}
+          <span class="badge bg-danger-subtle text-danger-emphasis me-1">
+            {{ node.type }}{% if node.name %}: {{ node.name }}{% endif %}{% if node.group %} <span class="opacity-75">({{ node.group }})</span>{% endif %}
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if tab.nodes_modified %}
+        <div>
+          <span class="text-warning small fw-semibold">Modified:</span>
+          {% for node in tab.nodes_modified %}
+          <span class="badge bg-warning-subtle text-warning-emphasis me-1" {% if node.changed_fields %}title="Changed: {{ node.changed_fields|join:', ' }}"{% endif %}>
+            {{ node.type }}{% if node.name %}: {{ node.name }}{% endif %}{% if node.group %} <span class="opacity-75">({{ node.group }})</span>{% endif %}
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not tab.nodes_added and not tab.nodes_removed and not tab.nodes_modified %}
+        <div class="text-body-secondary small">
+          Node count: {{ tab.nodes_before }} &rarr; {{ tab.nodes_after }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not backup.changes_summary.tabs_added and not backup.changes_summary.tabs_removed and not backup.changes_summary.tabs_modified %}
+    <p class="text-body-secondary mb-0">No structural changes detected.</p>
+    {% endif %}
+  </div>
+</div>
+{% elif prev_backup %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="h6 mb-0">Changes Since Previous Backup</h2>
+  </div>
+  <div class="card-body">
+    <p class="text-body-secondary mb-0">No structural changes detected.</p>
+  </div>
+</div>
+{% else %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="h6 mb-0">Changes Since Previous Backup</h2>
+  </div>
+  <div class="card-body">
+    <p class="text-body-secondary mb-0">First backup &mdash; no previous version to compare.</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Tabs in this backup -->
+{% if backup.tab_summary %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="h6 mb-0">Tabs ({{ backup.tab_summary|length }})</h2>
+  </div>
+  <div class="card-body">
+    {% for tab in backup.tab_summary %}
+    <span class="badge bg-body-secondary text-body me-1 mb-1">{{ tab }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Metadata -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h2 class="h6 mb-0">Details</h2>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <tbody>
+        <tr>
+          <th class="ps-3" style="width:180px">Filename</th>
+          <td><code>{{ backup.filename }}</code></td>
+        </tr>
+        <tr>
+          <th class="ps-3">Checksum (SHA-256)</th>
+          <td><code class="small">{{ backup.checksum|default:"—" }}</code></td>
+        </tr>
+        <tr>
+          <th class="ps-3">Created</th>
+          <td>{{ backup.created_at|date:"Y-m-d H:i:s T" }}</td>
+        </tr>
+        {% if restores %}
+        <tr>
+          <th class="ps-3">Restored</th>
+          <td>
+            {% for r in restores %}
+            {{ r.created_at|date:"Y-m-d H:i" }}
+            {% if r.status == "success" %}<span class="badge bg-success">Success</span>{% else %}<span class="badge bg-danger">Failed</span>{% endif %}
+            {% if not forloop.last %}<br>{% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function restoreBackup(id, filename) {
+  if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {
+    return;
+  }
+  fetch('/api/restore/' + id + '/', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      alert('Restore complete. Files restored: ' + data.restore.files_restored.join(', '));
+    } else {
+      alert('Restore failed: ' + (data.message || 'Unknown error'));
+    }
+    location.reload();
+  })
+  .catch(() => {
+    alert('Request failed');
+  });
+}
+</script>
+{% endblock %}

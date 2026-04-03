@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("backup/<int:backup_id>/", views.backup_detail, name="backup_detail"),
+    path("backup/<int:backup_id>/download/", views.backup_download, name="backup_download"),
     path("health/", views.health_check, name="health_check"),
     path("api/backup/", views.api_create_backup, name="api_create_backup"),
     path("api/restore/<int:backup_id>/", views.api_restore_backup, name="api_restore_backup"),
