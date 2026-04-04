@@ -14,8 +14,8 @@
   <!-- General -->
   {% include "backup/components/_card_section_start.html" with title="General" extra_class="mb-3" %}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.name %}
-      {% include "backup/components/_form_field.html" with field=form.flows_path %}
+      {% include "backup/components/_form_field.html" with field=form.name tooltip="A friendly name to identify this Node-RED instance in the dashboard." %}
+      {% include "backup/components/_form_field.html" with field=form.flows_path tooltip="Absolute path to the flows.json file inside the Node-RED container." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 
@@ -25,49 +25,49 @@
       Changes to schedule frequency or time require a container restart to take effect.
     </div>
     <div class="mb-4 space-y-2">
-      {% include "backup/components/_form_field.html" with field=form.is_active %}
-      {% include "backup/components/_form_field.html" with field=form.always_backup %}
+      {% include "backup/components/_form_field.html" with field=form.is_active tooltip="When enabled, backups run automatically on the configured schedule." %}
+      {% include "backup/components/_form_field.html" with field=form.always_backup tooltip="Normally, scheduled backups are skipped if flows.json hasn't changed. Enable this to always create a backup regardless." %}
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {% include "backup/components/_form_field.html" with field=form.backup_frequency %}
-      {% include "backup/components/_form_field.html" with field=form.backup_time %}
-      {% include "backup/components/_form_field.html" with field=form.backup_day %}
+      {% include "backup/components/_form_field.html" with field=form.backup_frequency tooltip="How often scheduled backups run. Daily runs once per day; Weekly runs on the selected day." %}
+      {% include "backup/components/_form_field.html" with field=form.backup_time tooltip="The time of day when scheduled backups are created (24-hour format)." %}
+      {% include "backup/components/_form_field.html" with field=form.backup_day tooltip="Which day weekly backups run on. Ignored when frequency is set to Daily." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 
   <!-- File Watching -->
   {% include "backup/components/_card_section_start.html" with title="File Watching" extra_class="mb-3" %}
     <div class="mb-4">
-      {% include "backup/components/_form_field.html" with field=form.watch_enabled %}
+      {% include "backup/components/_form_field.html" with field=form.watch_enabled tooltip="Monitors flows.json for changes and creates a backup automatically when the file is modified." %}
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {% include "backup/components/_form_field.html" with field=form.watch_debounce_seconds %}
+      {% include "backup/components/_form_field.html" with field=form.watch_debounce_seconds tooltip="After a file change is detected, the watcher waits this many seconds for additional changes before creating a backup. Prevents duplicate backups from rapid saves." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 
   <!-- Backup Contents -->
   {% include "backup/components/_card_section_start.html" with title="Backup Contents" extra_class="mb-3" %}
     <div class="space-y-2">
-      {% include "backup/components/_form_field.html" with field=form.backup_credentials %}
-      {% include "backup/components/_form_field.html" with field=form.backup_settings %}
+      {% include "backup/components/_form_field.html" with field=form.backup_credentials tooltip="Include the Node-RED credentials file in backups. Contains encrypted passwords and API keys used by your flows." %}
+      {% include "backup/components/_form_field.html" with field=form.backup_settings tooltip="Include the Node-RED settings file in backups. Contains runtime configuration like port, authentication, and logging." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 
   <!-- Retention -->
   {% include "backup/components/_card_section_start.html" with title="Retention" extra_class="mb-3" %}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.max_backups %}
-      {% include "backup/components/_form_field.html" with field=form.max_age_days %}
+      {% include "backup/components/_form_field.html" with field=form.max_backups tooltip="The total number of backups to keep. When exceeded, the oldest unpinned backups are deleted first." %}
+      {% include "backup/components/_form_field.html" with field=form.max_age_days tooltip="Unpinned backups older than this are automatically deleted during retention cleanup." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 
   <!-- Restore -->
   {% include "backup/components/_card_section_start.html" with title="Restore" extra_class="mb-3" %}
     <div class="mb-4">
-      {% include "backup/components/_form_field.html" with field=form.restart_on_restore %}
+      {% include "backup/components/_form_field.html" with field=form.restart_on_restore tooltip="Automatically restart the Node-RED container after restoring a backup so changes take effect immediately." %}
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.nodered_container_name %}
+      {% include "backup/components/_form_field.html" with field=form.nodered_container_name tooltip="The Docker container name for Node-RED. Used to restart the container after a restore." %}
     </div>
   {% include "backup/components/_card_section_end.html" %}
 

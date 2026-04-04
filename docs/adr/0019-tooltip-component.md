@@ -1,7 +1,7 @@
 # ADR 0019: Tooltip Component for Settings
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 
