@@ -14,6 +14,7 @@
       <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Base</div>
       <a href="{% url 'backup_detail' backup_a.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup_a.created_at|date:"Y-m-d H:i:s" }}</a>
       {% if backup_a.label %}<div class="text-sm text-gray-500 dark:text-gray-400">{{ backup_a.label }}</div>{% endif %}
+      {% if backup_a.notes %}<div class="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{{ backup_a.notes|truncatewords:30 }}</div>{% endif %}
       <div class="mt-1">{% include "backup/components/_badge.html" with text=backup_a.get_trigger_display variant="secondary" %}</div>
     </div>
     {% else %}
@@ -27,6 +28,7 @@
       <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Current</div>
       <a href="{% url 'backup_detail' backup_b.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup_b.created_at|date:"Y-m-d H:i:s" }}</a>
       {% if backup_b.label %}<div class="text-sm text-gray-500 dark:text-gray-400">{{ backup_b.label }}</div>{% endif %}
+      {% if backup_b.notes %}<div class="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{{ backup_b.notes|truncatewords:30 }}</div>{% endif %}
       <div class="mt-1">{% include "backup/components/_badge.html" with text=backup_b.get_trigger_display variant="secondary" %}</div>
     </div>
   </div>

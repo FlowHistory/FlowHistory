@@ -52,7 +52,10 @@
             {% endif %}
           </td>
           <td class="px-4 py-2">{% include "backup/components/_badge.html" with text=backup.get_trigger_display variant="secondary" %}</td>
-          <td class="px-4 py-2">{{ backup.label|default:"-" }}</td>
+          <td class="px-4 py-2">
+            {{ backup.label|default:"-" }}
+            {% if backup.notes %}<span title="{{ backup.notes|truncatewords:20 }}" class="ml-1 inline-block cursor-help text-xs text-blue-400">&#9998;</span>{% endif %}
+          </td>
           <td class="px-4 py-2">{{ backup.file_size|filesizeformat }}</td>
           <td class="px-4 py-2">
             {% if backup.status == "success" %}
@@ -66,6 +69,7 @@
               <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)">&#x2026;</button>
               <div class="dropdown-menu hidden">
                 <button class="dropdown-item" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
+                <button class="dropdown-item" onclick="setNotes({{ backup.pk }}, '{{ backup.notes|escapejs }}')">Notes</button>
                 {% if backup.status == "success" %}
                 <a href="{% url 'backup_download' backup.pk %}" class="dropdown-item">Download</a>
                 <a href="{% url 'diff_vs_previous' backup.pk %}" class="dropdown-item">View Diff</a>

@@ -1067,6 +1067,95 @@ class ApiSetLabelTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Notes API
+# ---------------------------------------------------------------------------
+
+
+@override_settings(REQUIRE_AUTH=False)
+class ApiSetNotesTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_notes"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        if self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir)
+
+    def test_set_notes(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/notes/",
+            data=json.dumps({"notes": "Rewired MQTT pipeline to batch writes."}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["backup"]["notes"], "Rewired MQTT pipeline to batch writes.")
+        self.backup_record.refresh_from_db()
+        self.assertEqual(self.backup_record.notes, "Rewired MQTT pipeline to batch writes.")
+
+    def test_clear_notes(self):
+        self.backup_record.notes = "old notes"
+        self.backup_record.save()
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/notes/",
+            data=json.dumps({"notes": ""}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.backup_record.refresh_from_db()
+        self.assertEqual(self.backup_record.notes, "")
+
+    def test_missing_notes_field(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/notes/",
+            data=json.dumps({"label": "wrong field"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_notes_not_a_string(self):
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/notes/",
+            data=json.dumps({"notes": 123}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_not_found(self):
+        resp = self.client.post(
+            "/api/backup/99999/notes/",
+            data=json.dumps({"notes": "test"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_multiline_notes(self):
+        multiline = "Line one\nLine two\nLine three"
+        resp = self.client.post(
+            f"/api/backup/{self.backup_record.pk}/notes/",
+            data=json.dumps({"notes": multiline}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.backup_record.refresh_from_db()
+        self.assertEqual(self.backup_record.notes, multiline)
+
+    def test_get_method_not_allowed(self):
+        resp = self.client.get(f"/api/backup/{self.backup_record.pk}/notes/")
+        self.assertEqual(resp.status_code, 405)
+
+
+# ---------------------------------------------------------------------------
 # Backup Delete
 # ---------------------------------------------------------------------------
 

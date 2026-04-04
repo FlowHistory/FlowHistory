@@ -223,6 +223,38 @@ def api_set_label(request, backup_id):
 
 
 @require_POST
+def api_set_notes(request, backup_id):
+    config = _get_or_create_config()
+    try:
+        backup = BackupRecord.objects.get(pk=backup_id, config=config)
+    except BackupRecord.DoesNotExist:
+        return JsonResponse(
+            {"status": "error", "message": "Backup not found"}, status=404
+        )
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse(
+            {"status": "error", "message": "Invalid JSON body"}, status=400
+        )
+    if "notes" not in body:
+        return JsonResponse(
+            {"status": "error", "message": "Missing 'notes' field"}, status=400
+        )
+    notes = body["notes"]
+    if not isinstance(notes, str):
+        return JsonResponse(
+            {"status": "error", "message": "'notes' must be a string"}, status=400
+        )
+    backup.notes = notes
+    backup.save(update_fields=["notes"])
+    return JsonResponse({
+        "status": "success",
+        "backup": {"id": backup.pk, "notes": backup.notes},
+    })
+
+
+@require_POST
 def backup_delete(request, backup_id):
     config = _get_or_create_config()
     try:
