@@ -35,6 +35,7 @@ def apply_retention(config=None):
         BackupRecord.objects
         .filter(config=config, status="success", created_at__lt=age_cutoff)
         .exclude(trigger="pre_restore", created_at__gte=protected_cutoff)
+        .exclude(is_pinned=True)
     )
 
     deleted_by_age = 0
@@ -57,6 +58,7 @@ def apply_retention(config=None):
     excess = [
         r for r in excess
         if not (r.trigger == "pre_restore" and r.created_at >= protected_cutoff)
+        and not r.is_pinned
     ]
 
     deleted_by_count = 0

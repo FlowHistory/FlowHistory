@@ -878,6 +878,33 @@ class RetentionServiceTest(TestCase):
         self.assertEqual(result["deleted_by_count"], 0)
         self.assertEqual(result["deleted_by_age"], 0)
 
+    def test_pinned_protected_from_count_deletion(self):
+        from backup.services.retention_service import apply_retention
+
+        records = self._create_backups(5)
+        # Pin the oldest backup
+        records[0].is_pinned = True
+        records[0].save(update_fields=["is_pinned"])
+        result = apply_retention(self.config)
+        # Oldest should survive because it's pinned
+        self.assertTrue(BackupRecord.objects.filter(pk=records[0].pk).exists())
+        # Only 1 deleted (not 2) because pinned one is protected
+        self.assertEqual(result["deleted_by_count"], 1)
+
+    def test_pinned_protected_from_age_deletion(self):
+        from backup.services.retention_service import apply_retention
+
+        records = self._create_backups(2)
+        # Backdate and pin one
+        for r in records:
+            r.created_at = r.created_at - timedelta(days=10)
+            r.save(update_fields=["created_at"])
+        records[0].is_pinned = True
+        records[0].save(update_fields=["is_pinned"])
+        result = apply_retention(self.config)
+        self.assertEqual(result["deleted_by_age"], 1)
+        self.assertTrue(BackupRecord.objects.filter(pk=records[0].pk).exists())
+
 
 # ---------------------------------------------------------------------------
 # Watcher Service
@@ -1152,6 +1179,63 @@ class ApiSetNotesTest(TestCase):
 
     def test_get_method_not_allowed(self):
         resp = self.client.get(f"/api/backup/{self.backup_record.pk}/notes/")
+        self.assertEqual(resp.status_code, 405)
+
+
+# ---------------------------------------------------------------------------
+# Pin Toggle
+# ---------------------------------------------------------------------------
+
+@override_settings(REQUIRE_AUTH=False)
+class ApiTogglePinTest(TestCase):
+    def setUp(self):
+        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_pin"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.flows_file = self.tmp_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        self.backup_record = create_backup(config=self.config, trigger="manual")
+
+    def tearDown(self):
+        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
+            f.unlink()
+        if self.tmp_dir.exists():
+            shutil.rmtree(self.tmp_dir)
+
+    def test_pin_backup(self):
+        resp = self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        self.assertTrue(data["backup"]["is_pinned"])
+        self.backup_record.refresh_from_db()
+        self.assertTrue(self.backup_record.is_pinned)
+
+    def test_unpin_backup(self):
+        self.backup_record.is_pinned = True
+        self.backup_record.save()
+        resp = self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertFalse(data["backup"]["is_pinned"])
+        self.backup_record.refresh_from_db()
+        self.assertFalse(self.backup_record.is_pinned)
+
+    def test_toggle_twice(self):
+        self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        self.backup_record.refresh_from_db()
+        self.assertFalse(self.backup_record.is_pinned)
+
+    def test_not_found(self):
+        resp = self.client.post("/api/backup/99999/pin/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_get_method_not_allowed(self):
+        resp = self.client.get(f"/api/backup/{self.backup_record.pk}/pin/")
         self.assertEqual(resp.status_code, 405)
 
 

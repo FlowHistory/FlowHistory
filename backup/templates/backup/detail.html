@@ -11,8 +11,12 @@
     {% if backup.label %}
     <span class="text-gray-500 dark:text-gray-400">&mdash; {{ backup.label }}</span>
     {% endif %}
+    {% if backup.is_pinned %}
+    <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">&#128204; Pinned</span>
+    {% endif %}
   </h1>
   <div class="flex gap-2">
+    <button class="btn-secondary" onclick="togglePin({{ backup.pk }})">{% if backup.is_pinned %}Unpin{% else %}Pin{% endif %}</button>
     <button class="btn-secondary" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
     <button class="btn-secondary" onclick="setNotes({{ backup.pk }}, '{{ backup.notes|escapejs }}')">Notes</button>
     {% if backup.status == "success" %}

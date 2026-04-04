@@ -58,6 +58,7 @@ class BackupRecord(models.Model):
     trigger = models.CharField(max_length=20, choices=TRIGGER_CHOICES, default="manual")
     label = models.CharField(max_length=200, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    is_pinned = models.BooleanField(default=False)
     tab_summary = models.JSONField(default=list, blank=True)
     changes_summary = models.JSONField(default=dict, blank=True)
     includes_credentials = models.BooleanField(default=False)

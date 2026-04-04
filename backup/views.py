@@ -255,6 +255,23 @@ def api_set_notes(request, backup_id):
 
 
 @require_POST
+def api_toggle_pin(request, backup_id):
+    config = _get_or_create_config()
+    try:
+        backup = BackupRecord.objects.get(pk=backup_id, config=config)
+    except BackupRecord.DoesNotExist:
+        return JsonResponse(
+            {"status": "error", "message": "Backup not found"}, status=404
+        )
+    backup.is_pinned = not backup.is_pinned
+    backup.save(update_fields=["is_pinned"])
+    return JsonResponse({
+        "status": "success",
+        "backup": {"id": backup.pk, "is_pinned": backup.is_pinned},
+    })
+
+
+@require_POST
 def backup_delete(request, backup_id):
     config = _get_or_create_config()
     try:

@@ -165,6 +165,25 @@ function setNotes(backupId, currentNotes) {
   }
 }
 
+// Toggle pin
+function togglePin(backupId) {
+  fetch('/api/backup/' + backupId + '/pin/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.status === 'success') {
+      location.reload();
+    } else {
+      alert(data.message || 'Failed to toggle pin');
+    }
+  })
+  .catch(function () {
+    alert('Request failed');
+  });
+}
+
 // Delete backup
 function deleteBackup(backupId, filename) {
   if (!confirm('Delete backup ' + filename + '?\n\nThis cannot be undone.')) {
