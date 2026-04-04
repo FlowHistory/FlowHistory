@@ -253,6 +253,24 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - Docker socket access allows container control (mitigated by read-only mount, opt-in)
 - SQLite with three writers can hit contention (mitigated by WAL mode + low write frequency)
 
+## Future Feature Ideas
+
+- **Notifications**: Discord, Slack, Telegram, Pushbullet, Home Assistant webhooks on backup success/failure/restore events
+- **Backup Import/Upload**: Upload a `.tar.gz` archive from another instance or local machine and register it as a backup record
+- **Export/Download All**: Download all (or N most recent) backups as a single zip for offsite archival or migration
+- **Backup Search & Filter**: Filter history table by trigger type, date range, status, or label
+- **Snapshot Pinning**: Mark backups as "pinned" so retention never deletes them (e.g., known-good configs, pre-major-change snapshots)
+- **Bulk Actions**: Select multiple backups and delete/download/label them at once
+- **Backup Notes/Annotations**: Expand the label field into a richer notes/description area for recording why a flow state matters
+- **Multi-Instance Support**: Monitor and back up multiple Node-RED instances from a single dashboard (separate flows paths, containers, unified view)
+- **REST API Expansion**: Read-only API (`GET /api/backups/`, `GET /api/backups/<id>/`, `GET /api/status/`) for Home Assistant sensors, Grafana, or custom monitoring
+- **Scheduled Restore Testing**: Periodically verify the latest backup can be extracted, parsed, and checksum-validated without performing a real restore
+- **System Theme Auto-Follow**: A "system" theme option that tracks OS dark/light preference changes in real-time
+- **Activity Log / Audit Trail**: Dedicated page showing all actions (backups, restores, deletes, setting changes) with timestamps
+- **Backup Size Trend Chart**: Sparkline or small chart on the dashboard showing backup sizes over time to spot unexpected flow bloat
+- **Webhook Trigger**: Allow external systems (CI/CD, Home Assistant) to trigger a backup via a webhook URL with optional API key auth
+- **Flow Diff Export**: Export a diff view as a shareable HTML file for team review of changes
+
 ## Todos
 
 - [x] Initialize Django project (config/, backup/ apps)
