@@ -17,7 +17,7 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [0001](0001-nodered-backup-architecture.md) | Node-RED Backup Application Architecture | **Partially Implemented** |
+| [0001](0001-nodered-backup-architecture.md) | FlowHistory Application Architecture | **Partially Implemented** |
 | [0002](0002-django-app-bootstrapping.md) | Django App Bootstrapping | **Implemented** |
 | [0003](0003-dockerization-and-basic-auth.md) | Dockerization and Basic Auth | **Implemented** |
 | [0004](0004-backup-service-and-flow-parser.md) | Backup Service and Flow Parser | **Implemented** |
@@ -34,3 +34,5 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0015](0015-backup-notes-annotations.md) | Backup Notes/Annotations | **Implemented** |
 | [0016](0016-snapshot-pinning.md) | Snapshot Pinning | **Implemented** |
 | [0017](0017-bulk-actions.md) | Bulk Actions | **Proposed** |
+| [0018](0018-always-backup-option.md) | Always Backup Option | **Proposed** |
+| [0019](0019-tooltip-component.md) | Tooltip Component for Settings | **Proposed** |
