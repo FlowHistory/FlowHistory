@@ -30,6 +30,7 @@
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="w-8 px-4 py-2"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" class="rounded border-gray-300 dark:border-gray-600"></th>
           <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Date</th>
           <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Trigger</th>
           <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Label</th>
@@ -41,6 +42,7 @@
       <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
         {% for backup in backups %}
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <td class="px-4 py-2"><input type="checkbox" class="backup-checkbox rounded border-gray-300 dark:border-gray-600" value="{{ backup.pk }}" onchange="updateBulkBar()"></td>
           <td class="px-4 py-2">
             <a href="{% url 'backup_detail' backup.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
             {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
@@ -85,7 +87,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+          <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
             No backups yet. Click "Create Backup" to get started.
           </td>
         </tr>
@@ -94,4 +96,18 @@
     </table>
   </div>
 {% include "backup/components/_card_section_end.html" %}
+
+<!-- Bulk Action Bar -->
+<div id="bulk-bar" class="hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white px-4 py-3 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+  <div class="mx-auto flex max-w-5xl items-center justify-between">
+    <span id="bulk-count" class="text-sm font-medium text-gray-700 dark:text-gray-300">0 selected</span>
+    <div class="flex gap-2">
+      <button id="bulk-compare" class="btn-secondary hidden" onclick="bulkCompare()">Compare</button>
+      <button class="btn-secondary" onclick="bulkPin()">Pin</button>
+      <button class="btn-secondary" onclick="bulkUnpin()">Unpin</button>
+      <button class="btn-secondary" onclick="bulkDownload()">Download</button>
+      <button class="btn-danger" onclick="bulkDelete()">Delete</button>
+    </div>
+  </div>
+</div>
 {% endblock %}

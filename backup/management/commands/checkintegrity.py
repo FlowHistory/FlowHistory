@@ -10,6 +10,13 @@ from backup.models import BackupRecord
 class Command(BaseCommand):
     help = "Remove orphaned backup records (archive file missing from disk)"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--delete",
+            action="store_true",
+            help="Actually delete orphaned records (default is warn-only)",
+        )
+
     def handle(self, *args, **options):
         orphaned = [
             r
@@ -22,9 +29,18 @@ class Command(BaseCommand):
 
         for record in orphaned:
             self.stderr.write(
-                f"Removing orphaned record: {record.filename} "
+                f"Orphaned record: {record.filename} "
                 f"(missing {record.file_path})"
             )
-            record.delete()
 
-        self.stderr.write(f"Removed {len(orphaned)} orphaned backup record(s)")
+        if options["delete"]:
+            for record in orphaned:
+                record.delete()
+            self.stderr.write(
+                f"Deleted {len(orphaned)} orphaned backup record(s)"
+            )
+        else:
+            self.stderr.write(
+                f"Found {len(orphaned)} orphaned record(s). "
+                f"Run with --delete to remove them."
+            )

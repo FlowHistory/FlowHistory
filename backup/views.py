@@ -272,6 +272,55 @@ def api_toggle_pin(request, backup_id):
 
 
 @require_POST
+def api_bulk_action(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse(
+            {"status": "error", "message": "Invalid JSON body"}, status=400
+        )
+    ids = body.get("ids", [])
+    action = body.get("action")
+
+    if action not in ("delete", "pin", "unpin"):
+        return JsonResponse(
+            {"status": "error", "message": "Invalid action"}, status=400
+        )
+    if not ids or not isinstance(ids, list) or len(ids) > 100:
+        return JsonResponse(
+            {"status": "error", "message": "Select 1-100 backups"}, status=400
+        )
+
+    config = _get_or_create_config()
+    backups = BackupRecord.objects.filter(pk__in=ids, config=config)
+    found_ids = set(backups.values_list("pk", flat=True))
+    errors = [f"Backup {mid} not found" for mid in ids if mid not in found_ids]
+    affected = 0
+
+    for backup in backups:
+        try:
+            if action == "delete":
+                Path(backup.file_path).unlink(missing_ok=True)
+                backup.delete()
+            elif action == "pin":
+                backup.is_pinned = True
+                backup.save(update_fields=["is_pinned"])
+            elif action == "unpin":
+                backup.is_pinned = False
+                backup.save(update_fields=["is_pinned"])
+            affected += 1
+        except Exception as e:
+            errors.append(f"Backup {backup.pk}: {e}")
+
+    return JsonResponse({
+        "status": "success",
+        "action": action,
+        "affected": affected,
+        "errors": errors,
+    })
+
+
+@require_POST
 def backup_delete(request, backup_id):
     config = _get_or_create_config()
     try:

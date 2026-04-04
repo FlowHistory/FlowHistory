@@ -33,3 +33,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0014](0014-hybrid-file-watcher.md) | Hybrid File Watcher (inotify + Checksum Polling) | **Implemented** |
 | [0015](0015-backup-notes-annotations.md) | Backup Notes/Annotations | **Implemented** |
 | [0016](0016-snapshot-pinning.md) | Snapshot Pinning | **Implemented** |
+| [0017](0017-bulk-actions.md) | Bulk Actions | **Proposed** |

@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import tarfile
+import tempfile
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
@@ -27,6 +28,30 @@ from backup.services.restore_service import restore_backup
 # ---------------------------------------------------------------------------
 # Sample flows data
 # ---------------------------------------------------------------------------
+
+class TempBackupDirMixin:
+    """Mixin that redirects BACKUP_DIR to a temp directory for test isolation.
+
+    Provides self.backup_dir (Path) pointing to the isolated temp directory.
+    The mixin patches settings.BACKUP_DIR and cleans up everything on tearDown,
+    so individual test classes don't need to glob-delete archives.
+
+    Place this mixin BEFORE TestCase in the class bases so its setUp/tearDown
+    wrap correctly.
+    """
+
+    def setUp(self):
+        self._backup_tmpdir_obj = tempfile.mkdtemp(prefix="nodered_test_backups_")
+        self.backup_dir = Path(self._backup_tmpdir_obj)
+        self._patcher = patch.object(settings, "BACKUP_DIR", self.backup_dir)
+        self._patcher.start()
+        super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
+        self._patcher.stop()
+        shutil.rmtree(self._backup_tmpdir_obj, ignore_errors=True)
+
 
 SAMPLE_FLOWS = [
     {"id": "tab1", "type": "tab", "label": "Home Automation"},
@@ -111,17 +136,10 @@ class FlowParserParseFlowsTest(TestCase):
         self.assertIn("name", n1_data)
 
 
-class FlowParserFileTest(TestCase):
+class FlowParserFileTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_parser"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
-
-    def tearDown(self):
-        if self.flows_file.exists():
-            self.flows_file.unlink()
-        if self.tmp_dir.exists():
-            self.tmp_dir.rmdir()
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
 
     def test_parse_flows_file_success(self):
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
@@ -356,24 +374,15 @@ class DiffTabSummariesTest(TestCase):
         self.assertIn("+ 10", fd["diff"])
 
 
-class BackupServiceTest(TestCase):
+class BackupServiceTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_svc"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
-
-    def tearDown(self):
-        # Clean up archives
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_create_backup_success(self):
         record = create_backup(config=self.config, trigger="manual")
@@ -460,7 +469,7 @@ class BackupServiceTest(TestCase):
         self.assertTrue(len(home_tab[0]["nodes_modified"]) > 0)
 
     def test_includes_credentials_when_present(self):
-        cred_file = self.tmp_dir / "flows_cred.json"
+        cred_file = self.backup_dir / "flows_cred.json"
         cred_file.write_text('{"encrypted": true}')
         self.config.backup_credentials = True
         self.config.save()
@@ -471,7 +480,7 @@ class BackupServiceTest(TestCase):
         cred_file.unlink()
 
     def test_excludes_credentials_when_disabled(self):
-        cred_file = self.tmp_dir / "flows_cred.json"
+        cred_file = self.backup_dir / "flows_cred.json"
         cred_file.write_text('{"encrypted": true}')
         self.config.backup_credentials = False
         self.config.save()
@@ -483,23 +492,15 @@ class BackupServiceTest(TestCase):
 
 
 @override_settings(REQUIRE_AUTH=False)
-class ApiCreateBackupTest(TestCase):
+class ApiCreateBackupTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_api"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_post_creates_backup(self):
         resp = self.client.post("/api/backup/")
@@ -569,11 +570,10 @@ class DockerServiceTest(TestCase):
 # Restore Service
 # ---------------------------------------------------------------------------
 
-class RestoreServiceTest(TestCase):
+class RestoreServiceTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_restore"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
@@ -581,16 +581,6 @@ class RestoreServiceTest(TestCase):
         )
         # Create a backup to restore from
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        restore_tmp = Path(settings.BACKUP_DIR) / "_restore_tmp"
-        if restore_tmp.exists():
-            shutil.rmtree(restore_tmp)
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_restore_success(self):
         # Modify flows.json so restore actually overwrites
@@ -676,7 +666,7 @@ class RestoreServiceTest(TestCase):
 
     def test_restore_with_credentials(self):
         # Create a backup that includes credentials
-        cred_file = self.tmp_dir / "flows_cred.json"
+        cred_file = self.backup_dir / "flows_cred.json"
         cred_file.write_text('{"encrypted": true}')
         self.config.backup_credentials = True
         self.config.save()
@@ -693,27 +683,16 @@ class RestoreServiceTest(TestCase):
 # ---------------------------------------------------------------------------
 
 @override_settings(REQUIRE_AUTH=False)
-class ApiRestoreBackupTest(TestCase):
+class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_restore_api"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        restore_tmp = Path(settings.BACKUP_DIR) / "_restore_tmp"
-        if restore_tmp.exists():
-            shutil.rmtree(restore_tmp)
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_post_restores_backup(self):
         resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
@@ -741,23 +720,15 @@ class ApiRestoreBackupTest(TestCase):
 # Diff Service
 # ---------------------------------------------------------------------------
 
-class DiffServiceArchiveTest(TestCase):
+class DiffServiceArchiveTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_diff"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_parse_flows_from_archive(self):
         record = create_backup(config=self.config, trigger="manual")
@@ -788,11 +759,10 @@ class DiffServiceArchiveTest(TestCase):
 # Retention Service
 # ---------------------------------------------------------------------------
 
-class RetentionServiceTest(TestCase):
+class RetentionServiceTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_retention"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
@@ -800,13 +770,6 @@ class RetentionServiceTest(TestCase):
             max_backups=3,
             max_age_days=7,
         )
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def _create_backups(self, count, **kwargs):
         """Create multiple manual backups with unique content.
@@ -910,11 +873,10 @@ class RetentionServiceTest(TestCase):
 # Watcher Service
 # ---------------------------------------------------------------------------
 
-class WatcherHandlerTest(TestCase):
+class WatcherHandlerTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_watcher"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
@@ -922,13 +884,6 @@ class WatcherHandlerTest(TestCase):
             watch_enabled=True,
             watch_debounce_seconds=1,
         )
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        for f in self.tmp_dir.iterdir():
-            f.unlink()
-        self.tmp_dir.rmdir()
 
     def test_ignores_directory_events(self):
         from backup.services.watcher_service import _FlowsHandler
@@ -946,7 +901,7 @@ class WatcherHandlerTest(TestCase):
         handler = _FlowsHandler("flows.json")
         event = MagicMock()
         event.is_directory = False
-        event.src_path = str(self.tmp_dir / "settings.js")
+        event.src_path = str(self.backup_dir / "settings.js")
         handler.on_modified(event)
         self.assertIsNone(handler._timer)
 
@@ -1025,23 +980,16 @@ class SchedulerBuildTriggerTest(TestCase):
 # ---------------------------------------------------------------------------
 
 @override_settings(REQUIRE_AUTH=False)
-class ApiSetLabelTest(TestCase):
+class ApiSetLabelTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_label"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir)
 
     def test_set_label(self):
         resp = self.client.post(
@@ -1099,23 +1047,16 @@ class ApiSetLabelTest(TestCase):
 
 
 @override_settings(REQUIRE_AUTH=False)
-class ApiSetNotesTest(TestCase):
+class ApiSetNotesTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_notes"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir)
 
     def test_set_notes(self):
         resp = self.client.post(
@@ -1187,23 +1128,16 @@ class ApiSetNotesTest(TestCase):
 # ---------------------------------------------------------------------------
 
 @override_settings(REQUIRE_AUTH=False)
-class ApiTogglePinTest(TestCase):
+class ApiTogglePinTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_pin"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir)
 
     def test_pin_backup(self):
         resp = self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
@@ -1244,23 +1178,16 @@ class ApiTogglePinTest(TestCase):
 # ---------------------------------------------------------------------------
 
 @override_settings(REQUIRE_AUTH=False)
-class BackupDeleteTest(TestCase):
+class BackupDeleteTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_delete"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
             flows_path=str(self.flows_file),
         )
         self.backup_record = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir)
 
     def test_delete_removes_record_and_file(self):
         archive_path = Path(self.backup_record.file_path)
@@ -1288,15 +1215,94 @@ class BackupDeleteTest(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Bulk Actions
+# ---------------------------------------------------------------------------
+
+@override_settings(REQUIRE_AUTH=False)
+class BulkActionTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+        )
+        with patch("backup.services.retention_service.apply_retention"):
+            self.b1 = create_backup(config=self.config, trigger="manual")
+            self.flows_file.write_text(json.dumps(SAMPLE_FLOWS + [{"id": "x"}]))
+            self.b2 = create_backup(config=self.config, trigger="manual")
+            self.flows_file.write_text(json.dumps(SAMPLE_FLOWS + [{"id": "y"}]))
+            self.b3 = create_backup(config=self.config, trigger="manual")
+
+    def _post(self, data):
+        return self.client.post(
+            "/api/backup/bulk/",
+            json.dumps(data),
+            content_type="application/json",
+        )
+
+    def test_bulk_pin(self):
+        resp = self._post({"ids": [self.b1.pk, self.b2.pk], "action": "pin"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["affected"], 2)
+        self.assertTrue(BackupRecord.objects.get(pk=self.b1.pk).is_pinned)
+        self.assertTrue(BackupRecord.objects.get(pk=self.b2.pk).is_pinned)
+        self.assertFalse(BackupRecord.objects.get(pk=self.b3.pk).is_pinned)
+
+    def test_bulk_unpin(self):
+        self.b1.is_pinned = True
+        self.b1.save()
+        self.b2.is_pinned = True
+        self.b2.save()
+        resp = self._post({"ids": [self.b1.pk, self.b2.pk], "action": "unpin"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(BackupRecord.objects.get(pk=self.b1.pk).is_pinned)
+        self.assertFalse(BackupRecord.objects.get(pk=self.b2.pk).is_pinned)
+
+    def test_bulk_delete(self):
+        p1 = Path(self.b1.file_path)
+        p2 = Path(self.b2.file_path)
+        resp = self._post({"ids": [self.b1.pk, self.b2.pk], "action": "delete"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["affected"], 2)
+        self.assertFalse(BackupRecord.objects.filter(pk=self.b1.pk).exists())
+        self.assertFalse(BackupRecord.objects.filter(pk=self.b2.pk).exists())
+        self.assertTrue(BackupRecord.objects.filter(pk=self.b3.pk).exists())
+        self.assertFalse(p1.is_file())
+        self.assertFalse(p2.is_file())
+
+    def test_invalid_action(self):
+        resp = self._post({"ids": [self.b1.pk], "action": "nope"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_empty_ids(self):
+        resp = self._post({"ids": [], "action": "pin"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_missing_backup_returns_error(self):
+        resp = self._post({"ids": [self.b1.pk, 99999], "action": "pin"})
+        data = resp.json()
+        self.assertEqual(data["affected"], 1)
+        self.assertEqual(len(data["errors"]), 1)
+        self.assertIn("99999", data["errors"][0])
+
+    def test_get_not_allowed(self):
+        resp = self.client.get("/api/backup/bulk/")
+        self.assertEqual(resp.status_code, 405)
+
+
+# ---------------------------------------------------------------------------
 # Diff View
 # ---------------------------------------------------------------------------
 
 @override_settings(REQUIRE_AUTH=False)
-class DiffViewTest(TestCase):
+class DiffViewTest(TempBackupDirMixin, TestCase):
     def setUp(self):
-        self.tmp_dir = Path(settings.BACKUP_DIR) / "_test_diffview"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.flows_file = self.tmp_dir / "flows.json"
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
             pk=1,
@@ -1310,12 +1316,6 @@ class DiffViewTest(TestCase):
             ]
             self.flows_file.write_text(json.dumps(new_flows))
             self.backup_b = create_backup(config=self.config, trigger="manual")
-
-    def tearDown(self):
-        for f in Path(settings.BACKUP_DIR).glob("nodered_backup_*.tar.gz"):
-            f.unlink()
-        if self.tmp_dir.exists():
-            shutil.rmtree(self.tmp_dir)
 
     def test_diff_vs_previous_returns_200(self):
         resp = self.client.get(f"/diff/{self.backup_b.pk}/")

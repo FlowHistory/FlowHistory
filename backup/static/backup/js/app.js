@@ -210,6 +210,100 @@ function compareDiff(backupId) {
   }
 }
 
+// Bulk actions
+function toggleSelectAll(checkbox) {
+  document.querySelectorAll('.backup-checkbox').forEach(function (cb) {
+    cb.checked = checkbox.checked;
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  var count = getSelectedIds().length;
+  var bar = document.getElementById('bulk-bar');
+  var label = document.getElementById('bulk-count');
+  if (!bar) return;
+  if (count > 0) {
+    bar.classList.remove('hidden');
+    label.textContent = count + ' selected';
+  } else {
+    bar.classList.add('hidden');
+  }
+  // Sync select-all checkbox
+  var all = document.querySelectorAll('.backup-checkbox');
+  var selectAll = document.getElementById('select-all');
+  if (selectAll && all.length) {
+    selectAll.checked = count === all.length;
+  }
+  // Show Compare button only when exactly 2 selected
+  var compareBtn = document.getElementById('bulk-compare');
+  if (compareBtn) {
+    if (count === 2) {
+      compareBtn.classList.remove('hidden');
+    } else {
+      compareBtn.classList.add('hidden');
+    }
+  }
+}
+
+function getSelectedIds() {
+  var ids = [];
+  document.querySelectorAll('.backup-checkbox:checked').forEach(function (cb) {
+    ids.push(parseInt(cb.value, 10));
+  });
+  return ids;
+}
+
+function bulkAction(action) {
+  var ids = getSelectedIds();
+  if (!ids.length) return;
+  return fetch('/api/backup/bulk/', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': getCsrfToken(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ids: ids, action: action }),
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.errors && data.errors.length) {
+      alert(data.affected + ' succeeded, ' + data.errors.length + ' failed:\n' + data.errors.join('\n'));
+    }
+    location.reload();
+  })
+  .catch(function () {
+    alert('Request failed');
+  });
+}
+
+function bulkPin() { bulkAction('pin'); }
+function bulkUnpin() { bulkAction('unpin'); }
+
+function bulkDelete() {
+  var ids = getSelectedIds();
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' backup' + (ids.length > 1 ? 's' : '') + '?\n\nThis cannot be undone.')) return;
+  bulkAction('delete');
+}
+
+function bulkCompare() {
+  var ids = getSelectedIds();
+  if (ids.length !== 2) return;
+  // Newer backup is the main one, older is the compare target
+  // Use the larger ID as backup_id (newer), smaller as compare_id
+  var a = Math.min(ids[0], ids[1]);
+  var b = Math.max(ids[0], ids[1]);
+  window.location.href = '/diff/' + b + '/' + a + '/';
+}
+
+function bulkDownload() {
+  var ids = getSelectedIds();
+  ids.forEach(function (id) {
+    window.open('/backup/' + id + '/download/', '_blank');
+  });
+}
+
 // Restore backup
 function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {

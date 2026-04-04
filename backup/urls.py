@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/backup/<int:backup_id>/label/", views.api_set_label, name="api_set_label"),
     path("api/backup/<int:backup_id>/notes/", views.api_set_notes, name="api_set_notes"),
     path("api/backup/<int:backup_id>/pin/", views.api_toggle_pin, name="api_toggle_pin"),
+    path("api/backup/bulk/", views.api_bulk_action, name="api_bulk_action"),
     path("api/restore/<int:backup_id>/", views.api_restore_backup, name="api_restore_backup"),
     path("backup/<int:backup_id>/delete/", views.backup_delete, name="backup_delete"),
     path("diff/<int:backup_id>/", views.diff_view, name="diff_vs_previous"),
