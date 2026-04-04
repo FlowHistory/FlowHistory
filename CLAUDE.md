@@ -1,4 +1,4 @@
-# Node-RED Backup
+# FlowHistory
 
 Django-based backup and restore tool for Node-RED flow files, running in Docker.
 
@@ -17,18 +17,18 @@ docker compose down             # Stop
 
 ### Tests
 ```bash
-docker exec nodered-backup python manage.py test backup -v2
+docker exec flowhistory python manage.py test backup -v2
 ```
 
 ### Migrations
 ```bash
-docker exec nodered-backup python manage.py makemigrations backup
-docker exec nodered-backup python manage.py migrate
+docker exec flowhistory python manage.py makemigrations backup
+docker exec flowhistory python manage.py migrate
 ```
 
 ### Django Management Commands
 ```bash
-docker exec nodered-backup python manage.py <command>
+docker exec flowhistory python manage.py <command>
 ```
 
 ### Manual Backup (via API)

@@ -1,4 +1,4 @@
-# nodered-backup
+# FlowHistory
 
 A Django web application for automated backup and restore of Node-RED flow files. Watches the `flows.json` file for changes, creates versioned backups with flow-level change detection, and provides a web UI to browse, compare, label, and restore backups.
 

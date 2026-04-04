@@ -17,6 +17,7 @@ class NodeRedConfig(models.Model):
     max_backups = models.PositiveIntegerField(default=20)
     max_age_days = models.PositiveIntegerField(default=30)
     is_active = models.BooleanField(default=True)
+    always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
     watch_debounce_seconds = models.PositiveIntegerField(default=30)
     backup_credentials = models.BooleanField(default=True)

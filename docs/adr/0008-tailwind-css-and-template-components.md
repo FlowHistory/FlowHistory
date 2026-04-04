@@ -5,7 +5,7 @@ Implemented
 
 ## Context
 
-The Node-RED Backup web UI is built with Bootstrap 5 (vendored, no CDN) and five Django templates: `base.html`, `login.html`, `dashboard.html`, `detail.html`, and `settings.html`. The project has no Node.js toolchain, no build system, and runs as a single Docker container.
+The FlowHistory web UI is built with Bootstrap 5 (vendored, no CDN) and five Django templates: `base.html`, `login.html`, `dashboard.html`, `detail.html`, and `settings.html`. The project has no Node.js toolchain, no build system, and runs as a single Docker container.
 
 Several problems have emerged with the current approach:
 

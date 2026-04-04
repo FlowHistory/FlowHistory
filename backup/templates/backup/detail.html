@@ -1,6 +1,6 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Backup {{ backup.created_at|date:"Y-m-d H:i" }} — Node-RED Backup{% endblock %}
+{% block title %}Backup {{ backup.created_at|date:"Y-m-d H:i" }} — FlowHistory{% endblock %}
 
 {% block content %}
 {% include "backup/components/_breadcrumb.html" with items=breadcrumb_items %}

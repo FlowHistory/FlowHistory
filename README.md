@@ -1,4 +1,4 @@
-# Node-RED Backup
+# FlowHistory
 
 A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker container alongside your Node-RED instance. Automatically detects flow changes, creates compressed backups, and provides a web UI for managing backups, viewing diffs, and restoring.
 
@@ -24,8 +24,8 @@ A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker 
 ### 1. Clone and configure
 
 ```bash
-git clone <repo-url> nodered-backup
-cd nodered-backup
+git clone <repo-url> flowhistory
+cd flowhistory
 cp .env.example .env
 ```
 
@@ -85,14 +85,14 @@ All commands run inside the Docker container:
 docker compose up -d --build
 
 # Run tests
-docker exec nodered-backup python manage.py test backup -v2
+docker exec flowhistory python manage.py test backup -v2
 
 # View logs
 docker compose logs --tail=50
 
 # Run migrations
-docker exec nodered-backup python manage.py makemigrations backup
-docker exec nodered-backup python manage.py migrate
+docker exec flowhistory python manage.py makemigrations backup
+docker exec flowhistory python manage.py migrate
 ```
 
 ## API Endpoints

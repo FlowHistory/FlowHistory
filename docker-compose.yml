@@ -1,7 +1,7 @@
 services:
-  nodered-backup:
+  flowhistory:
     build: .
-    container_name: nodered-backup
+    container_name: flowhistory
     ports:
       - "9472:8000"
     volumes:

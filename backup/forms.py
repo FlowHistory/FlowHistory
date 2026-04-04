@@ -14,6 +14,7 @@ class NodeRedConfigForm(forms.ModelForm):
             "name",
             "flows_path",
             "is_active",
+            "always_backup",
             "backup_frequency",
             "backup_time",
             "backup_day",
@@ -30,6 +31,7 @@ class NodeRedConfigForm(forms.ModelForm):
             "name": forms.TextInput(attrs={"class": TW_INPUT}),
             "flows_path": forms.TextInput(attrs={"class": TW_INPUT}),
             "is_active": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
+            "always_backup": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
             "backup_frequency": forms.Select(attrs={"class": TW_SELECT}),
             "backup_time": forms.TimeInput(attrs={"class": TW_INPUT, "type": "time"}),
             "backup_day": forms.Select(
@@ -57,6 +59,7 @@ class NodeRedConfigForm(forms.ModelForm):
             "name": "Instance Name",
             "flows_path": "Flows File Path",
             "is_active": "Enable Scheduled Backups",
+            "always_backup": "Always Create Scheduled Backups",
             "backup_frequency": "Backup Frequency",
             "backup_time": "Backup Time",
             "backup_day": "Day of Week",
@@ -70,6 +73,7 @@ class NodeRedConfigForm(forms.ModelForm):
             "nodered_container_name": "Container Name",
         }
         help_texts = {
+            "always_backup": "Create backup even when flows.json is unchanged",
             "flows_path": "Path to flows.json inside the container",
             "backup_time": "Time for daily/weekly scheduled backups",
             "backup_day": "Only used when frequency is Weekly",

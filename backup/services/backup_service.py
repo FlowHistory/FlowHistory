@@ -1,4 +1,4 @@
-"""Create and manage Node-RED backup archives."""
+"""Create and manage FlowHistory backup archives."""
 
 import hashlib
 import logging
@@ -34,7 +34,7 @@ def create_backup(config=None, trigger="manual"):
     now = timezone.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     short_id = uuid.uuid4().hex[:8]
-    filename = f"nodered_backup_{timestamp}_{short_id}.tar.gz"
+    filename = f"flowhistory_{timestamp}_{short_id}.tar.gz"
     dest = Path(settings.BACKUP_DIR) / filename
 
     # Validate flows.json exists
@@ -46,7 +46,7 @@ def create_backup(config=None, trigger="manual"):
     checksum = hashlib.sha256(flows_bytes).hexdigest()
 
     # Skip if identical to last successful backup (except manual/pre_restore)
-    if trigger in ("scheduled", "file_change"):
+    if trigger == "file_change" or (trigger == "scheduled" and not config.always_backup):
         last = (
             BackupRecord.objects
             .filter(config=config, status="success")

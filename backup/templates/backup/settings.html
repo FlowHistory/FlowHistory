@@ -1,6 +1,6 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Settings — Node-RED Backup{% endblock %}
+{% block title %}Settings — FlowHistory{% endblock %}
 
 {% block content %}
 <div class="mb-4 flex items-center justify-between">
@@ -24,8 +24,9 @@
     <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
       Changes to schedule frequency or time require a container restart to take effect.
     </div>
-    <div class="mb-4">
+    <div class="mb-4 space-y-2">
       {% include "backup/components/_form_field.html" with field=form.is_active %}
+      {% include "backup/components/_form_field.html" with field=form.always_backup %}
     </div>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
       {% include "backup/components/_form_field.html" with field=form.backup_frequency %}

@@ -40,7 +40,7 @@ Provides `get_tab_names()` convenience function for populating `BackupRecord.tab
 7. **Save BackupRecord** with all metadata
 8. **Update config** `last_successful_backup` timestamp and clear error state
 
-**Naming convention**: `nodered_backup_{YYYYMMDD}_{HHMMSS}_{8-char-uuid}.tar.gz`
+**Naming convention**: `flowhistory_{YYYYMMDD}_{HHMMSS}_{8-char-uuid}.tar.gz`
 
 **Return values**: Returns a `BackupRecord` on success or failure, or `None` when dedup skips. Failed backups have `status="failed"` with `error_message` populated and `config.last_backup_error` updated.
 

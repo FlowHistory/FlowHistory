@@ -389,7 +389,7 @@ class BackupServiceTest(TempBackupDirMixin, TestCase):
         self.assertIsNotNone(record)
         self.assertEqual(record.status, "success")
         self.assertEqual(record.trigger, "manual")
-        self.assertTrue(record.filename.startswith("nodered_backup_"))
+        self.assertTrue(record.filename.startswith("flowhistory_"))
         self.assertTrue(record.filename.endswith(".tar.gz"))
         self.assertGreater(record.file_size, 0)
         self.assertEqual(len(record.checksum), 64)
@@ -432,6 +432,25 @@ class BackupServiceTest(TempBackupDirMixin, TestCase):
         create_backup(config=self.config, trigger="manual")
         result = create_backup(config=self.config, trigger="scheduled")
         self.assertIsNone(result)
+
+    def test_always_backup_bypasses_dedup_for_scheduled(self):
+        self.config.always_backup = True
+        self.config.save()
+        create_backup(config=self.config, trigger="manual")
+        result = create_backup(config=self.config, trigger="scheduled")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.status, "success")
+
+    def test_always_backup_does_not_bypass_dedup_for_file_change(self):
+        self.config.always_backup = True
+        self.config.save()
+        create_backup(config=self.config, trigger="manual")
+        result = create_backup(config=self.config, trigger="file_change")
+        self.assertIsNone(result)
+
+    def test_always_backup_defaults_to_false(self):
+        config = NodeRedConfig.objects.create(pk=99)
+        self.assertFalse(config.always_backup)
 
     def test_dedup_does_not_skip_manual(self):
         create_backup(config=self.config, trigger="manual")

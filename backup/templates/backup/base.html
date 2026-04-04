@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>{% block title %}Node-RED Backup{% endblock %}</title>
+  <title>{% block title %}FlowHistory{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'backup/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
   <nav class="border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
     <div class="flex items-center justify-between">
-      <a href="{% url 'dashboard' %}" class="text-lg font-bold text-gray-900 dark:text-gray-100">Node-RED Backup</a>
+      <a href="{% url 'dashboard' %}" class="text-lg font-bold text-gray-900 dark:text-gray-100">FlowHistory</a>
       <div class="flex items-center gap-2">
         <a href="{% url 'settings' %}" class="btn-secondary">Settings</a>
         <button id="theme-toggle" title="Toggle theme" class="btn-secondary">
@@ -38,7 +38,7 @@
   </main>
 
   <footer class="border-t border-gray-200 px-4 py-3 dark:border-gray-800">
-    <small class="text-gray-500 dark:text-gray-400">Node-RED Backup v0.1.0</small>
+    <small class="text-gray-500 dark:text-gray-400">FlowHistory v0.1.0</small>
   </footer>
 
   <script src="{% static 'backup/js/app.js' %}"></script>

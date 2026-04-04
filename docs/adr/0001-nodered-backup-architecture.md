@@ -1,4 +1,6 @@
-# ADR 0001: Node-RED Backup Application Architecture
+# ADR 0001: FlowHistory Application Architecture
+
+> **Note:** This project was renamed from "Node-RED Backup" to "FlowHistory" in April 2026.
 
 ## Status
 Partially Implemented
@@ -157,7 +159,7 @@ Each backup is a `.tar.gz` archive containing:
 - `flows_cred.json` (if enabled and exists)
 - `settings.js` (if enabled and exists)
 
-**Naming**: `nodered_backup_{YYYYMMDD}_{HHMMSS}_{8-char-uuid}.tar.gz`
+**Naming**: `flowhistory_{YYYYMMDD}_{HHMMSS}_{8-char-uuid}.tar.gz`
 
 **Storage**: ~150 KB compressed per backup (1.5 MB JSON compresses ~10:1). At 20 max backups, total ~3 MB.
 
@@ -173,7 +175,7 @@ Each backup is a `.tar.gz` archive containing:
 
 ```yaml
 services:
-  nodered-backup:
+  flowhistory:
     build: .
     ports:
       - "8001:8000"

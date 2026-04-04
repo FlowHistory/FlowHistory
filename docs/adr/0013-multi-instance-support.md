@@ -7,9 +7,9 @@ Proposed
 
 The application currently assumes a single Node-RED instance. `NodeRedConfig` is used as a singleton (`pk=1`) throughout views, services, and management commands. All backups, schedules, watchers, and retention policies operate against that one config.
 
-Users running multiple Node-RED instances (e.g., production + development, or separate instances per automation domain) must deploy a separate nodered-backup container for each. This works but means multiple dashboards, no unified view, and duplicated infrastructure.
+Users running multiple Node-RED instances (e.g., production + development, or separate instances per automation domain) must deploy a separate flowhistory container for each. This works but means multiple dashboards, no unified view, and duplicated infrastructure.
 
-Multi-instance support would let a single nodered-backup deployment manage backups for several Node-RED instances, each with its own flows path, schedule, retention policy, and container name.
+Multi-instance support would let a single flowhistory deployment manage backups for several Node-RED instances, each with its own flows path, schedule, retention policy, and container name.
 
 ## Decision
 
@@ -106,10 +106,10 @@ Backup archives organized by instance slug:
 ```
 backups/
 ├── nodered-prod/
-│   ├── nodered_backup_20260401_030000_abc12345.tar.gz
+│   ├── flowhistory_20260401_030000_abc12345.tar.gz
 │   └── ...
 ├── nodered-dev/
-│   ├── nodered_backup_20260401_030000_def67890.tar.gz
+│   ├── flowhistory_20260401_030000_def67890.tar.gz
 │   └── ...
 ```
 
@@ -264,7 +264,7 @@ Phase 1 (Model) → Phase 2 (Services) → Phase 3 (Storage) → Phase 4 (URLs/V
 ### Verification
 
 After each phase:
-- `docker exec nodered-backup python manage.py test backup -v2`
+- `docker exec flowhistory python manage.py test backup -v2`
 - `docker compose up -d --build` and test in browser
 
 Final end-to-end:
