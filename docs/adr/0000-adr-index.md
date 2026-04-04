@@ -29,3 +29,5 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0010](0010-diff-viewer-page.md) | Diff Viewer Page | **Implemented** |
 | [0011](0011-error-routes.md) | Error Routes (404/500) with Redirect and Flash Messages | **Implemented** |
 | [0012](0012-dashboard-actions-dropdown.md) | Dashboard Actions Dropdown | **Proposed** |
+| [0013](0013-multi-instance-support.md) | Multi-Instance Node-RED Support | **Proposed** |
+| [0014](0014-hybrid-file-watcher.md) | Hybrid File Watcher (inotify + Checksum Polling) | **Implemented** |

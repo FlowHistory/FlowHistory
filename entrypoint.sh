@@ -4,6 +4,9 @@ set -e
 # Run migrations on startup
 python manage.py migrate --noinput
 
+# Remove backup records whose archive files are missing
+python manage.py checkintegrity
+
 # Start scheduler in background
 python manage.py runapscheduler &
 SCHEDULER_PID=$!
