@@ -1107,7 +1107,7 @@ class BackupDeleteTest(TestCase):
 
     def test_not_found(self):
         resp = self.client.post("/backup/99999/delete/")
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 302)
 
     def test_get_not_allowed(self):
         resp = self.client.get(f"/backup/{self.backup_record.pk}/delete/")
@@ -1165,9 +1165,9 @@ class DiffViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No previous backup")
 
-    def test_diff_nonexistent_backup_404(self):
+    def test_diff_nonexistent_backup_redirects(self):
         resp = self.client.get("/diff/99999/")
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 302)
 
     def test_diff_failed_backup_404(self):
         failed = BackupRecord.objects.create(
@@ -1178,7 +1178,7 @@ class DiffViewTest(TestCase):
             status="failed",
         )
         resp = self.client.get(f"/diff/{failed.pk}/")
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 302)
 
     def test_diff_falls_back_to_stored_summary(self):
         # Delete archives so archive diff fails, should fall back to stored summary

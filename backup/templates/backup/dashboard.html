@@ -62,11 +62,19 @@
             {% endif %}
           </td>
           <td class="px-4 py-2 text-right">
-            {% if backup.status == "success" %}
-            <button class="btn-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
-            {% else %}
-            <span class="text-xs text-gray-400">&mdash;</span>
-            {% endif %}
+            <div class="relative inline-block">
+              <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)">&#x2026;</button>
+              <div class="dropdown-menu hidden">
+                <button class="dropdown-item" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
+                {% if backup.status == "success" %}
+                <a href="{% url 'backup_download' backup.pk %}" class="dropdown-item">Download</a>
+                <a href="{% url 'diff_vs_previous' backup.pk %}" class="dropdown-item">View Diff</a>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
+                {% endif %}
+                <button class="dropdown-item-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>
+              </div>
+            </div>
           </td>
         </tr>
         {% empty %}

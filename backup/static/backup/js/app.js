@@ -22,6 +22,23 @@
   }
 })();
 
+// Dropdown toggle
+function toggleDropdown(event) {
+  event.stopPropagation();
+  var menu = event.currentTarget.nextElementSibling;
+  // Close any other open dropdowns
+  document.querySelectorAll('.dropdown-menu').forEach(function (el) {
+    if (el !== menu) el.classList.add('hidden');
+  });
+  menu.classList.toggle('hidden');
+}
+
+document.addEventListener('click', function () {
+  document.querySelectorAll('.dropdown-menu').forEach(function (el) {
+    el.classList.add('hidden');
+  });
+});
+
 // CSRF helper
 function getCsrfToken() {
   return document.querySelector('meta[name="csrf-token"]').content;
