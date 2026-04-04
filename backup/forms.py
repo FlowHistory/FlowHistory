@@ -11,7 +11,6 @@ class NodeRedConfigForm(forms.ModelForm):
     class Meta:
         model = NodeRedConfig
         fields = [
-            "name",
             "flows_path",
             "is_active",
             "always_backup",
@@ -28,7 +27,6 @@ class NodeRedConfigForm(forms.ModelForm):
             "nodered_container_name",
         ]
         widgets = {
-            "name": forms.TextInput(attrs={"class": TW_INPUT}),
             "flows_path": forms.TextInput(attrs={"class": TW_INPUT}),
             "is_active": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
             "always_backup": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
@@ -47,7 +45,7 @@ class NodeRedConfigForm(forms.ModelForm):
                 attrs={"class": TW_SELECT},
             ),
             "watch_enabled": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
-            "watch_debounce_seconds": forms.NumberInput(attrs={"class": TW_INPUT, "min": "5"}),
+            "watch_debounce_seconds": forms.NumberInput(attrs={"class": TW_INPUT, "min": "1"}),
             "backup_credentials": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
             "backup_settings": forms.CheckboxInput(attrs={"class": TW_CHECKBOX}),
             "max_backups": forms.NumberInput(attrs={"class": TW_INPUT, "min": "1"}),
@@ -56,7 +54,6 @@ class NodeRedConfigForm(forms.ModelForm):
             "nodered_container_name": forms.TextInput(attrs={"class": TW_INPUT}),
         }
         labels = {
-            "name": "Instance Name",
             "flows_path": "Flows File Path",
             "is_active": "Enable Scheduled Backups",
             "always_backup": "Always Create Scheduled Backups",
@@ -80,5 +77,5 @@ class NodeRedConfigForm(forms.ModelForm):
             "watch_debounce_seconds": "Wait this many seconds after the last file change before backing up",
             "max_backups": "Oldest backups are deleted when this limit is exceeded",
             "max_age_days": "Backups older than this are deleted",
-            "nodered_container_name": "Docker container name for restart functionality",
+            "nodered_container_name": "Docker container name for restart (requires /var/run/docker.sock mount)",
         }

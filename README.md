@@ -32,12 +32,10 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-SECRET_KEY=change-me-to-a-random-string
 DEBUG=false
 ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.76
 TIME_ZONE=America/New_York
 NODERED_DATA_PATH=/nodered-data
-NODERED_CONTAINER_NAME=nodered
 REQUIRE_AUTH=false
 APP_PASSWORD=
 ```

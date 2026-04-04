@@ -10,7 +10,7 @@
 
 <!-- Status Cards -->
 <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-  {% include "backup/components/_stat_card.html" with label="Instance" value=config.name %}
+  {% include "backup/components/_stat_card.html" with label="Instance" value="Node-RED" %}
   {% if flows_accessible %}
   {% include "backup/components/_stat_card.html" with label="Flows File" value="Accessible" value_class="text-green-500" %}
   {% else %}

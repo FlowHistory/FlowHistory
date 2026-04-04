@@ -3,7 +3,6 @@ from django.utils import timezone
 
 
 class NodeRedConfig(models.Model):
-    name = models.CharField(max_length=100, default="Node-RED")
     flows_path = models.CharField(max_length=500, default="/nodered-data/flows.json")
     backup_frequency = models.CharField(
         max_length=10,
@@ -19,8 +18,8 @@ class NodeRedConfig(models.Model):
     is_active = models.BooleanField(default=True)
     always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
-    watch_debounce_seconds = models.PositiveIntegerField(default=30)
-    backup_credentials = models.BooleanField(default=True)
+    watch_debounce_seconds = models.PositiveIntegerField(default=3)
+    backup_credentials = models.BooleanField(default=False)
     backup_settings = models.BooleanField(default=False)
     restart_on_restore = models.BooleanField(default=False)
     nodered_container_name = models.CharField(max_length=100, default="nodered")
@@ -31,7 +30,7 @@ class NodeRedConfig(models.Model):
         verbose_name = "Node-RED Configuration"
 
     def __str__(self):
-        return self.name
+        return f"NodeRedConfig #{self.pk}"
 
 
 class BackupRecord(models.Model):

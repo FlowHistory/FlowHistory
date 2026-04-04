@@ -36,3 +36,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0017](0017-bulk-actions.md) | Bulk Actions | **Proposed** |
 | [0018](0018-always-backup-option.md) | Always Backup Option | **Proposed** |
 | [0019](0019-tooltip-component.md) | Tooltip Component for Settings | **Proposed** |
+| [0020](0020-simplify-defaults-and-env-vars.md) | Simplify Default Settings and Reduce Env Vars | **Proposed** |

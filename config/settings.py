@@ -126,6 +126,5 @@ LOGIN_URL = "/login/"
 
 # Node-RED paths
 NODERED_DATA_PATH = os.environ.get("NODERED_DATA_PATH", "/nodered-data")
-NODERED_CONTAINER_NAME = os.environ.get("NODERED_CONTAINER_NAME", "nodered")
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)

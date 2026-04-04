@@ -13,10 +13,7 @@
 
   <!-- General -->
   {% include "backup/components/_card_section_start.html" with title="General" extra_class="mb-3" %}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.name tooltip="A friendly name to identify this Node-RED instance in the dashboard." %}
-      {% include "backup/components/_form_field.html" with field=form.flows_path tooltip="Absolute path to the flows.json file inside the Node-RED container." %}
-    </div>
+    {% include "backup/components/_form_field.html" with field=form.flows_path tooltip="Absolute path to the flows.json file inside the Node-RED container." %}
   {% include "backup/components/_card_section_end.html" %}
 
   <!-- Schedule -->
