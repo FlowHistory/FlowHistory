@@ -94,7 +94,7 @@
                 <a href="{% url 'backup_download' config.slug backup.pk %}" class="dropdown-item">Download</a>
                 <a href="{% url 'diff_vs_previous' config.slug backup.pk %}" class="dropdown-item">View Diff</a>
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
+                <button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Restore</button>
                 {% endif %}
                 <button class="dropdown-item-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>
               </div>

@@ -11,8 +11,6 @@
 <!-- Global Stats -->
 <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
   {% include "backup/components/_stat_card.html" with label="Instances" value=total_instances %}
-  {% with total_backups=instances|length %}
-  {% endwith %}
 </div>
 
 <!-- Instance Cards -->

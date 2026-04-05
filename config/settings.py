@@ -70,6 +70,7 @@ def _get_or_create_secret_key():
     except FileNotFoundError:
         key = secrets.token_urlsafe(50)
         key_file.write_text(key)
+        key_file.chmod(0o600)
         return key
 
 

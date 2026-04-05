@@ -274,11 +274,11 @@ For **local** instances (current behavior):
 - Optionally restart container via Docker socket
 
 For **remote** instances:
-- Extract archive to temp directory
+- Extract `flows.json` from archive
+- Authenticate with `flows.read flows.write` scope
 - `POST {nodered_url}/flows` with the flows JSON to deploy
-- Requires `flows.write` permission on the Node-RED admin API
-- Optionally restart via `POST {nodered_url}/flows` with `deployment` type
-- Note: Remote restore may not support credential/settings file restoration
+- No container restart or file ownership changes (handled by remote Node-RED)
+- Note: Only `flows.json` is deployed; credentials and settings are not restored remotely
 
 ### 8. Scheduler Changes
 

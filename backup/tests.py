@@ -1742,3 +1742,91 @@ class RemotePollerTest(TestCase):
 
         poller._consecutive_failures = 10
         self.assertLessEqual(poller.get_poll_interval(config), 300)  # Capped
+
+
+@override_settings(REQUIRE_AUTH=False)
+class RemoteRestoreTest(TempBackupDirMixin, TestCase):
+    """Tests for restoring backups to remote Node-RED instances."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = NodeRedConfig.objects.create(
+            name="Remote Restore",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+            env_prefix="REMOTE",
+        )
+        # Create a backup archive with flows.json
+        flows_bytes = json.dumps(SAMPLE_FLOWS).encode()
+        backup_dir = self.config.backup_dir
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = backup_dir / "test_restore.tar.gz"
+        with tarfile.open(archive_path, "w:gz") as tar:
+            info = tarfile.TarInfo(name="flows.json")
+            info.size = len(flows_bytes)
+            tar.addfile(info, BytesIO(flows_bytes))
+        checksum = hashlib.sha256(flows_bytes).hexdigest()
+        self.backup_record = BackupRecord.objects.create(
+            config=self.config,
+            filename="test_restore.tar.gz",
+            file_path=str(archive_path),
+            file_size=archive_path.stat().st_size,
+            checksum=checksum,
+            status="success",
+            trigger="manual",
+        )
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_deploys_flows(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "success")
+        mock_deploy.assert_called_once()
+        call_args = mock_deploy.call_args
+        self.assertEqual(call_args[0][0], self.config)
+        # Verify flows.json content was passed
+        deployed = json.loads(call_args[0][1])
+        self.assertEqual(deployed, SAMPLE_FLOWS)
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_records_files(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.files_restored, ["flows.json"])
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_deploy_failure(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        mock_deploy.side_effect = Exception("Connection refused")
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("Failed to deploy", result.error_message)
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_no_container_restart(self, mock_safety, mock_deploy):
+        """Remote restore should not attempt container restart."""
+        mock_safety.return_value = None
+        self.config.restart_on_restore = True
+        self.config.save()
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "success")
+        self.assertFalse(result.container_restarted)
+
+    def test_remote_restore_api_endpoint(self):
+        """API endpoint should accept restore for remote instances."""
+        with patch("backup.views.restore_backup") as mock_restore:
+            mock_restore.return_value = RestoreRecord(
+                config=self.config,
+                backup=self.backup_record,
+                status="success",
+                files_restored=["flows.json"],
+            )
+            resp = self.client.post(
+                f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/"
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.json()["status"], "success")

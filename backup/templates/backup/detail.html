@@ -22,7 +22,7 @@
     {% if backup.status == "success" %}
     <a href="{% url 'diff_vs_previous' config.slug backup.pk %}" class="btn-secondary">View Diff</a>
     <a href="{% url 'backup_download' config.slug backup.pk %}" class="btn-secondary">Download</a>
-    <button class="btn-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
+    <button class="btn-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Restore</button>
     {% endif %}
     <button class="btn-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>
   </div>

@@ -350,10 +350,9 @@ Per-instance env vars use the pattern `FLOWHISTORY_{PREFIX}_{FIELD}`:
 
 ### Settings UI Behavior
 
-- **Env-seeded instances**: URL and credentials shown as read-only (sourced from env). All other fields editable.
-- **UI-created instances**: All fields editable. User enters a prefix for credential env var lookup.
+- **All instances** are configured via environment variables and shown as read-only in the settings UI.
 - **Connection test button**: Validates URL + credentials work, shown for remote instances.
-- **Warning indicators**: Shown when expected env vars (`_USER`, `_PASS`) are not set.
+- UI-based instance creation is not currently supported; instances are added by setting env vars and restarting.
 
 ### Example Deployments
 

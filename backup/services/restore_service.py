@@ -51,7 +51,10 @@ def restore_backup(backup_id, restart=None):
     # Create pre-restore safety backup
     safety_backup = _create_safety_backup(config)
 
-    # Extract and copy files
+    if config.source_type == "remote":
+        return _restore_remote(record, config, safety_backup)
+
+    # Local restore: extract and copy files
     try:
         files_restored = _extract_and_restore(record, config)
     except Exception as e:
@@ -139,6 +142,37 @@ def _create_safety_backup(config):
         return None
 
 
+def _restore_remote(record, config, safety_backup):
+    """Deploy flows from a backup archive to a remote Node-RED instance."""
+    from backup.services.remote_service import deploy_remote_flows
+
+    try:
+        with tarfile.open(record.file_path, "r:gz") as tar:
+            member = tar.getmember("flows.json")
+            f = tar.extractfile(member)
+            if f is None:
+                return _fail(config, record, safety_backup, "Could not read flows.json from archive")
+            flows_json = f.read()
+    except (tarfile.TarError, OSError, KeyError) as e:
+        return _fail(config, record, safety_backup, f"Failed to read archive: {e}")
+
+    try:
+        deploy_remote_flows(config, flows_json)
+    except Exception as e:
+        return _fail(config, record, safety_backup, f"Failed to deploy flows to remote instance: {e}")
+
+    restore_record = RestoreRecord.objects.create(
+        config=config,
+        backup=record,
+        safety_backup=safety_backup,
+        status="success",
+        files_restored=["flows.json"],
+    )
+
+    logger.info("Remote restore deployed to %s from %s", config.nodered_url, record.filename)
+    return restore_record
+
+
 def _extract_and_restore(record, config):
     """Extract archive to temp dir, then copy files to Node-RED data dir.
 
@@ -152,9 +186,12 @@ def _extract_and_restore(record, config):
 
         # Extract archive to temp dir
         with tarfile.open(record.file_path, "r:gz") as tar:
-            # Security: only extract known safe file names
+            # Security: only extract known safe file names, skip symlinks
             safe_names = {"flows.json", "flows_cred.json", "settings.js"}
-            members = [m for m in tar.getmembers() if m.name in safe_names]
+            members = [
+                m for m in tar.getmembers()
+                if m.name in safe_names and not m.issym() and not m.islnk()
+            ]
             tar.extractall(path=tmp_dir, members=members)
 
         # Copy files to destination and set ownership

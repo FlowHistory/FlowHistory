@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 MAX_BACKOFF_SECONDS = 300
 AUTH_BACKOFF_SECONDS = 600  # 10 minutes — matches Node-RED's rate limit window
 BACKOFF_THRESHOLD = 3
+MAX_RESPONSE_BYTES = 50_000_000  # 50 MB safety limit
 
 
-def authenticate_nodered(url, username, password):
+def authenticate_nodered(url, username, password, scope="flows.read"):
     """Authenticate with a Node-RED instance and return the access token.
 
     Returns None if no credentials provided.
@@ -28,7 +29,7 @@ def authenticate_nodered(url, username, password):
         data={
             "client_id": "node-red-admin",
             "grant_type": "password",
-            "scope": "flows.read flows.write",
+            "scope": scope,
             "username": username,
             "password": password,
         },
@@ -74,7 +75,57 @@ def fetch_remote_flows(config, token=None):
             )
 
     resp.raise_for_status()
+
+    if len(resp.content) > MAX_RESPONSE_BYTES:
+        raise ValueError(
+            f"Flows response too large ({len(resp.content)} bytes, limit {MAX_RESPONSE_BYTES})"
+        )
+
     return resp.text, token
+
+
+def deploy_remote_flows(config, flows_json):
+    """Deploy flows to a remote Node-RED instance via POST /flows.
+
+    Args:
+        config: NodeRedConfig with source_type="remote".
+        flows_json: Flows as a JSON string or bytes.
+
+    Raises:
+        requests.RequestException on connection/auth/deploy failure.
+    """
+    username, password = config.get_nodered_credentials()
+    token = authenticate_nodered(
+        config.nodered_url, username, password, scope="flows.read flows.write",
+    )
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if isinstance(flows_json, bytes):
+        flows_json = flows_json.decode()
+
+    resp = requests.post(
+        f"{config.nodered_url}/flows",
+        headers=headers,
+        data=flows_json,
+        timeout=30,
+    )
+
+    # Retry once on expired token
+    if resp.status_code == 401 and token:
+        token = authenticate_nodered(
+            config.nodered_url, username, password, scope="flows.read flows.write",
+        )
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+            resp = requests.post(
+                f"{config.nodered_url}/flows",
+                headers=headers,
+                data=flows_json,
+                timeout=30,
+            )
+
+    resp.raise_for_status()
 
 
 class RemotePoller:
@@ -86,6 +137,7 @@ class RemotePoller:
         self._consecutive_failures = 0
         self._auth_failure = False
         self._cached_token = None
+        self._lock = threading.Lock()
 
     def _get_config(self):
         from backup.models import NodeRedConfig
@@ -106,9 +158,27 @@ class RemotePoller:
             return False
 
         try:
-            flows_text, self._cached_token = fetch_remote_flows(config, token=self._cached_token)
+            with self._lock:
+                flows_text, self._cached_token = fetch_remote_flows(config, token=self._cached_token)
         except Exception as e:
-            self._consecutive_failures += 1
+            with self._lock:
+                self._consecutive_failures += 1
+                if hasattr(e, 'response') and e.response is not None:
+                    status = e.response.status_code
+                    try:
+                        body = e.response.json()
+                        reason = body.get("error_description", body.get("error", f"{status} {e.response.reason}"))
+                    except Exception:
+                        reason = f"{status} {e.response.reason}"
+                    if status in (401, 403):
+                        self._auth_failure = True
+                        self._cached_token = None
+                elif isinstance(e, requests.ConnectionError):
+                    reason = f"Cannot connect to {config.nodered_url}"
+                elif isinstance(e, requests.Timeout):
+                    reason = f"Connection to {config.nodered_url} timed out"
+                else:
+                    reason = str(e)
             level = logging.WARNING if self._consecutive_failures >= BACKOFF_THRESHOLD else logging.ERROR
             logger.log(
                 level,
@@ -116,28 +186,18 @@ class RemotePoller:
                 config.name, self._consecutive_failures,
                 exc_info=True,
             )
-            if hasattr(e, 'response') and e.response is not None:
-                status = e.response.status_code
-                try:
-                    body = e.response.json()
-                    reason = body.get("error_description", body.get("error", f"{status} {e.response.reason}"))
-                except Exception:
-                    reason = f"{status} {e.response.reason}"
-                if status in (401, 403, 500) and "auth/token" in str(e):
-                    self._auth_failure = True
-                    self._cached_token = None
-            elif 'ConnectionError' in type(e).__name__:
-                reason = f"Cannot connect to {config.nodered_url}"
-            elif 'Timeout' in type(e).__name__:
-                reason = f"Connection to {config.nodered_url} timed out"
-            else:
-                reason = str(e)
             config.last_backup_error = reason
             config.save(update_fields=["last_backup_error"])
             return False
 
-        self._consecutive_failures = 0
-        self._auth_failure = False
+        with self._lock:
+            self._consecutive_failures = 0
+            self._auth_failure = False
+
+        # Clear any previous error on successful fetch
+        if config.last_backup_error:
+            config.last_backup_error = ""
+            config.save(update_fields=["last_backup_error"])
 
         checksum = hashlib.sha256(flows_text.encode()).hexdigest()
         if checksum == self._last_checksum:
@@ -159,12 +219,13 @@ class RemotePoller:
 
     def get_poll_interval(self, config):
         """Return the effective poll interval, with backoff on failures."""
-        if self._auth_failure:
-            return AUTH_BACKOFF_SECONDS
-        base = config.poll_interval_seconds
-        if self._consecutive_failures >= BACKOFF_THRESHOLD:
-            return min(base * (2 ** (self._consecutive_failures - BACKOFF_THRESHOLD + 1)), MAX_BACKOFF_SECONDS)
-        return base
+        with self._lock:
+            if self._auth_failure:
+                return AUTH_BACKOFF_SECONDS
+            base = config.poll_interval_seconds
+            if self._consecutive_failures >= BACKOFF_THRESHOLD:
+                return min(base * (2 ** (self._consecutive_failures - BACKOFF_THRESHOLD + 1)), MAX_BACKOFF_SECONDS)
+            return base
 
 
 def _run_remote_polling_loop(poller, stop_event, config_id):

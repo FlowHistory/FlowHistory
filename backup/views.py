@@ -1,12 +1,13 @@
 import json
 import logging
 import os
+import shutil
 import tarfile
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -137,7 +138,6 @@ def instance_delete(request, slug):
         delete_files = request.POST.get("delete_files") == "on"
 
         if delete_files:
-            import shutil
             backup_dir = config.backup_dir
             if backup_dir.is_dir():
                 shutil.rmtree(backup_dir, ignore_errors=True)

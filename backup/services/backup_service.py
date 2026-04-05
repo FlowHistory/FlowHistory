@@ -8,6 +8,7 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 
+from django.conf import settings
 from django.utils import timezone
 
 from backup.models import BackupRecord
@@ -34,6 +35,8 @@ def create_backup(config, trigger="manual", flows_data=None):
     short_id = uuid.uuid4().hex[:8]
     filename = f"flowhistory_{timestamp}_{short_id}.tar.gz"
     backup_dir = config.backup_dir
+    if not str(backup_dir.resolve()).startswith(str(Path(settings.BACKUP_DIR).resolve())):
+        return _fail(config, filename, Path(""), trigger, "Backup directory outside allowed path")
     backup_dir.mkdir(parents=True, exist_ok=True)
     dest = backup_dir / filename
 
