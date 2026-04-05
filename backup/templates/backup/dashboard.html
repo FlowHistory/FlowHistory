@@ -4,110 +4,59 @@
 
 {% block content %}
 <div class="mb-4 flex items-center justify-between">
-  <h1 class="text-xl font-semibold">Dashboard</h1>
-  <button class="btn-primary" id="btn-backup" data-url="{% url 'api_create_backup' %}" onclick="createBackup()">Create Backup</button>
+  <h1 class="text-xl font-semibold">Instances</h1>
+  <a href="{% url 'instance_add' %}" class="btn-secondary">Add Instance</a>
 </div>
 
-<!-- Status Cards -->
-<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-  {% include "backup/components/_stat_card.html" with label="Instance" value="Node-RED" %}
-  {% if flows_accessible %}
-  {% include "backup/components/_stat_card.html" with label="Flows File" value="Accessible" value_class="text-green-500" %}
-  {% else %}
-  {% include "backup/components/_stat_card.html" with label="Flows File" value="Not Found" value_class="text-red-500" %}
-  {% endif %}
-  {% include "backup/components/_stat_card.html" with label="Total Backups" value=backup_count %}
-  {% if last_backup %}
-  {% include "backup/components/_stat_card.html" with label="Last Backup" value=last_backup.created_at|timesince %}
-  {% else %}
-  {% include "backup/components/_stat_card.html" with label="Last Backup" value="Never" %}
-  {% endif %}
+<!-- Global Stats -->
+<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+  {% include "backup/components/_stat_card.html" with label="Instances" value=total_instances %}
+  {% with total_backups=instances|length %}
+  {% endwith %}
 </div>
 
-<!-- Backup History Table -->
-{% include "backup/components/_card_section_start.html" with title="Backup History" body_class="p-0" %}
-  <div class="overflow-visible">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b border-gray-200 dark:border-gray-700">
-          <th class="w-8 px-4 py-2"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" class="rounded border-gray-300 dark:border-gray-600"></th>
-          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Date</th>
-          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Trigger</th>
-          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Label</th>
-          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Size</th>
-          <th class="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</th>
-          <th class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-        {% for backup in backups %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-          <td class="px-4 py-2"><input type="checkbox" class="backup-checkbox rounded border-gray-300 dark:border-gray-600" value="{{ backup.pk }}" onchange="updateBulkBar()"></td>
-          <td class="px-4 py-2">
-            <a href="{% url 'backup_detail' backup.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
-            {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              {% if backup.changes_summary.tabs_added %}+{{ backup.changes_summary.tabs_added|length }} tab{{ backup.changes_summary.tabs_added|length|pluralize }}{% endif %}
-              {% if backup.changes_summary.tabs_removed %}{% if backup.changes_summary.tabs_added %}, {% endif %}-{{ backup.changes_summary.tabs_removed|length }} tab{{ backup.changes_summary.tabs_removed|length|pluralize }}{% endif %}
-              {% if backup.changes_summary.tabs_modified %}{% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed %}, {% endif %}{{ backup.changes_summary.tabs_modified|length }} modified{% endif %}
-            </div>
-            {% endif %}
-          </td>
-          <td class="px-4 py-2">{% include "backup/components/_badge.html" with text=backup.get_trigger_display variant="secondary" %}</td>
-          <td class="px-4 py-2">
-            {% if backup.is_pinned %}<span title="Pinned — protected from retention" class="mr-1 inline-block text-xs text-amber-500">&#128204;</span>{% endif %}
-            {{ backup.label|default:"-" }}
-            {% if backup.notes %}<span title="{{ backup.notes|truncatewords:20 }}" class="ml-1 inline-block cursor-help text-xs text-blue-400">&#9998;</span>{% endif %}
-          </td>
-          <td class="px-4 py-2">{{ backup.file_size|filesizeformat }}</td>
-          <td class="px-4 py-2">
-            {% if backup.status == "success" %}
-            {% include "backup/components/_badge.html" with text="Success" variant="success" %}
-            {% else %}
-            {% include "backup/components/_badge.html" with text="Failed" variant="danger" %}
-            {% endif %}
-          </td>
-          <td class="px-4 py-2 text-right">
-            <div class="relative inline-block">
-              <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)">&#x2026;</button>
-              <div class="dropdown-menu hidden">
-                <button class="dropdown-item" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
-                <button class="dropdown-item" onclick="setNotes({{ backup.pk }}, '{{ backup.notes|escapejs }}')">Notes</button>
-                <button class="dropdown-item" onclick="togglePin({{ backup.pk }})">{% if backup.is_pinned %}Unpin{% else %}Pin{% endif %}</button>
-                {% if backup.status == "success" %}
-                <a href="{% url 'backup_download' backup.pk %}" class="dropdown-item">Download</a>
-                <a href="{% url 'diff_vs_previous' backup.pk %}" class="dropdown-item">View Diff</a>
-                <div class="dropdown-divider"></div>
-                <button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename }}')">Restore</button>
-                {% endif %}
-                <button class="dropdown-item-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-            No backups yet. Click "Create Backup" to get started.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-{% include "backup/components/_card_section_end.html" %}
-
-<!-- Bulk Action Bar -->
-<div id="bulk-bar" class="hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white px-4 py-3 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-  <div class="mx-auto flex max-w-5xl items-center justify-between">
-    <span id="bulk-count" class="text-sm font-medium text-gray-700 dark:text-gray-300">0 selected</span>
-    <div class="flex gap-2">
-      <button id="bulk-compare" class="btn-secondary hidden" onclick="bulkCompare()">Compare</button>
-      <button class="btn-secondary" onclick="bulkPin()">Pin</button>
-      <button class="btn-secondary" onclick="bulkUnpin()">Unpin</button>
-      <button class="btn-secondary" onclick="bulkDownload()">Download</button>
-      <button class="btn-danger" onclick="bulkDelete()">Delete</button>
+<!-- Instance Cards -->
+<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+  {% for inst in instances %}
+  <a href="{% url 'instance_dashboard' inst.config.slug %}" class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600">
+    <div class="mb-3 flex items-center gap-2">
+      <span class="inline-block h-3 w-3 rounded-full" style="background-color: {{ inst.config.color }}"></span>
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{{ inst.config.name }}</h2>
+      {% if inst.config.source_type == "remote" %}
+      {% include "backup/components/_badge.html" with text="Remote" variant="info" %}
+      {% else %}
+      {% include "backup/components/_badge.html" with text="Local" variant="secondary" %}
+      {% endif %}
     </div>
-  </div>
+
+    <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+      <div class="flex justify-between">
+        <span>Status</span>
+        {% if not inst.config.is_enabled %}
+        <span class="text-gray-400">Disabled</span>
+        {% elif inst.is_healthy %}
+        <span class="text-green-500">Healthy</span>
+        {% else %}
+        <span class="text-red-500">Error</span>
+        {% endif %}
+      </div>
+      {% if inst.config.last_backup_error %}
+      <div class="mt-1 text-xs text-red-500 dark:text-red-400 truncate" title="{{ inst.config.last_backup_error }}">{{ inst.config.last_backup_error }}</div>
+      {% endif %}
+      <div class="flex justify-between">
+        <span>Backups</span>
+        <span class="font-medium text-gray-900 dark:text-gray-100">{{ inst.backup_count }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Last Backup</span>
+        <span>{% if inst.last_backup %}{{ inst.last_backup.created_at|timesince }} ago{% else %}Never{% endif %}</span>
+      </div>
+      <div class="flex justify-between">
+        <span>Storage</span>
+        <span>{{ inst.total_size|filesizeformat }}</span>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
 </div>
 {% endblock %}

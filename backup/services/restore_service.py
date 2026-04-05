@@ -8,7 +8,6 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from django.conf import settings
 from django.utils import timezone
 
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
@@ -146,7 +145,7 @@ def _extract_and_restore(record, config):
     Returns list of restored file names.
     """
     dest_dir = Path(config.flows_path).parent
-    tmp_dir = Path(settings.BACKUP_DIR) / "_restore_tmp"
+    tmp_dir = config.backup_dir / "_restore_tmp"
 
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)

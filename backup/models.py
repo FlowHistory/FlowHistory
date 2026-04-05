@@ -1,8 +1,40 @@
+import os
+from pathlib import Path
+
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class NodeRedConfig(models.Model):
+    SOURCE_TYPE_CHOICES = [
+        ("local", "Local"),
+        ("remote", "Remote"),
+    ]
+
+    INSTANCE_COLORS = [
+        "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899",
+    ]
+
+    RESERVED_SLUGS = {"add", "api"}
+
+    # Instance identity
+    name = models.CharField(max_length=100, default="Node-RED")
+    slug = models.SlugField(max_length=100, unique=True)
+    color = models.CharField(max_length=7, blank=True, default="")
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Source type
+    source_type = models.CharField(
+        max_length=10, choices=SOURCE_TYPE_CHOICES, default="local",
+    )
+    nodered_url = models.URLField(blank=True, default="")
+    env_prefix = models.CharField(max_length=50, blank=True, default="")
+    poll_interval_seconds = models.PositiveIntegerField(default=60)
+
+    # Existing per-instance config
     flows_path = models.CharField(max_length=500, default="/nodered-data/flows.json")
     backup_frequency = models.CharField(
         max_length=10,
@@ -15,7 +47,7 @@ class NodeRedConfig(models.Model):
     )
     max_backups = models.PositiveIntegerField(default=20)
     max_age_days = models.PositiveIntegerField(default=30)
-    is_active = models.BooleanField(default=True)
+    schedule_enabled = models.BooleanField(default=True)
     always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
     watch_debounce_seconds = models.PositiveIntegerField(default=3)
@@ -30,7 +62,41 @@ class NodeRedConfig(models.Model):
         verbose_name = "Node-RED Configuration"
 
     def __str__(self):
-        return f"NodeRedConfig #{self.pk}"
+        return self.name
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse("instance_dashboard", kwargs={"slug": self.slug})
+
+    @property
+    def backup_dir(self):
+        """Per-instance backup storage directory."""
+        return Path(settings.BACKUP_DIR) / self.slug
+
+    def get_nodered_credentials(self):
+        """Read credentials from environment variables using configured prefix."""
+        if not self.env_prefix:
+            return None, None
+        prefix = self.env_prefix.upper()
+        username = os.environ.get(f"FLOWHISTORY_{prefix}_USER", "")
+        password = os.environ.get(f"FLOWHISTORY_{prefix}_PASS", "")
+        return username, password
+
+    def save(self, *args, **kwargs):
+        """Auto-generate slug from name with uniqueness dedup."""
+        if not self.slug:
+            base = slugify(self.name) or "instance"
+            if base in self.RESERVED_SLUGS:
+                base = f"{base}-instance"
+            slug, n = base, 1
+            while NodeRedConfig.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f"{base}-{n}"
+            self.slug = slug
+        if not self.color:
+            idx = NodeRedConfig.objects.exclude(pk=self.pk).count() % len(self.INSTANCE_COLORS)
+            self.color = self.INSTANCE_COLORS[idx]
+        super().save(*args, **kwargs)
 
 
 class BackupRecord(models.Model):

@@ -1,0 +1,48 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Delete {{ config.name }} — FlowHistory{% endblock %}
+
+{% block content %}
+{% include "backup/components/_breadcrumb.html" with items=breadcrumb_items %}
+
+<div class="mx-auto max-w-lg">
+  <div class="rounded-lg border border-red-200 bg-white p-6 dark:border-red-800 dark:bg-gray-800">
+    <h1 class="mb-4 text-xl font-semibold text-red-600 dark:text-red-400">Delete Instance</h1>
+
+    <p class="mb-4 text-sm text-gray-700 dark:text-gray-300">
+      Are you sure you want to delete <strong>{{ config.name }}</strong>?
+      This will remove the instance configuration and all {{ backup_count }} backup record{{ backup_count|pluralize }} from the database.
+    </p>
+
+    <div class="mb-4 rounded-md bg-gray-50 p-3 text-sm dark:bg-gray-900">
+      <div class="flex justify-between mb-1">
+        <span class="text-gray-500 dark:text-gray-400">Backups</span>
+        <span class="font-medium">{{ backup_count }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500 dark:text-gray-400">Storage used</span>
+        <span class="font-medium">{{ total_size|filesizeformat }}</span>
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input type="checkbox" name="delete_files" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 dark:border-gray-600 dark:bg-gray-800">
+          Also delete backup files from disk ({{ total_size|filesizeformat }})
+        </label>
+      </div>
+
+      <div class="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">
+        A container restart is needed after deletion for scheduler/watcher cleanup.
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" class="btn-danger">Delete Instance</button>
+        <a href="{% url 'instance_settings' config.slug %}" class="btn-secondary px-4 py-2">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

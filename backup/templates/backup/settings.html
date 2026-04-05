@@ -1,76 +1,188 @@
 {% extends "backup/base.html" %}
 
-{% block title %}Settings — FlowHistory{% endblock %}
+{% block title %}{{ config.name }} Settings — FlowHistory{% endblock %}
 
 {% block content %}
+{% include "backup/components/_breadcrumb.html" with items=breadcrumb_items %}
+
 <div class="mb-4 flex items-center justify-between">
-  <h1 class="text-xl font-semibold">Settings</h1>
-  <a href="{% url 'dashboard' %}" class="btn-secondary">Back to Dashboard</a>
+  <div class="flex items-center gap-2">
+    <span class="inline-block h-3 w-3 rounded-full" style="background-color: {{ config.color }}"></span>
+    <h1 class="text-xl font-semibold">{{ config.name }} Settings</h1>
+  </div>
+  <a href="{% url 'instance_dashboard' config.slug %}" class="btn-secondary">Back to Dashboard</a>
 </div>
 
-<form method="post">
-  {% csrf_token %}
+<div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+  Settings are configured via environment variables. Edit your <code>.env</code> file and restart the container to apply changes.
+  {% if config.env_prefix %}Prefix: <code>FLOWHISTORY_{{ config.env_prefix }}_*</code>{% endif %}
+</div>
 
-  <!-- General -->
-  {% include "backup/components/_card_section_start.html" with title="General" extra_class="mb-3" %}
-    {% include "backup/components/_form_field.html" with field=form.flows_path tooltip="Absolute path to the flows.json file inside the Node-RED container." %}
-  {% include "backup/components/_card_section_end.html" %}
+<!-- Instance -->
+{% include "backup/components/_card_section_start.html" with title="Instance" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Name</th>
+        <td class="px-4 py-2">{{ config.name }}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Slug</th>
+        <td class="px-4 py-2"><code>{{ config.slug }}</code></td>
+      </tr>
+      <tr>
+        <th class="th-label">Source Type</th>
+        <td class="px-4 py-2">{{ config.get_source_type_display }}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Enabled</th>
+        <td class="px-4 py-2">{% if config.is_enabled %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      {% if config.env_prefix %}
+      <tr>
+        <th class="th-label">Env Prefix</th>
+        <td class="px-4 py-2"><code>FLOWHISTORY_{{ config.env_prefix }}_*</code></td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
 
-  <!-- Schedule -->
-  {% include "backup/components/_card_section_start.html" with title="Schedule" extra_class="mb-3" %}
-    <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-      Changes to schedule frequency or time require a container restart to take effect.
-    </div>
-    <div class="mb-4 space-y-2">
-      {% include "backup/components/_form_field.html" with field=form.is_active tooltip="When enabled, backups run automatically on the configured schedule." %}
-      {% include "backup/components/_form_field.html" with field=form.always_backup tooltip="Normally, scheduled backups are skipped if flows.json hasn't changed. Enable this to always create a backup regardless." %}
-    </div>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {% include "backup/components/_form_field.html" with field=form.backup_frequency tooltip="How often scheduled backups run. Daily runs once per day; Weekly runs on the selected day." %}
-      {% include "backup/components/_form_field.html" with field=form.backup_time tooltip="The time of day when scheduled backups are created (24-hour format)." %}
-      {% include "backup/components/_form_field.html" with field=form.backup_day tooltip="Which day weekly backups run on. Ignored when frequency is set to Daily." %}
-    </div>
-  {% include "backup/components/_card_section_end.html" %}
+<!-- Source -->
+{% include "backup/components/_card_section_start.html" with title="Source" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      {% if config.source_type == "local" %}
+      <tr>
+        <th class="th-label w-48">Flows Path</th>
+        <td class="px-4 py-2"><code>{{ config.flows_path }}</code></td>
+      </tr>
+      {% else %}
+      <tr>
+        <th class="th-label w-48">Node-RED URL</th>
+        <td class="px-4 py-2"><code>{{ config.nodered_url }}</code></td>
+      </tr>
+      <tr>
+        <th class="th-label">Credentials</th>
+        <td class="px-4 py-2">
+          {% if has_credentials %}
+          <span class="text-green-600 dark:text-green-400">Configured</span>
+          {% else %}
+          <span class="text-gray-400">Not set</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th class="th-label">Poll Interval</th>
+        <td class="px-4 py-2">{{ config.poll_interval_seconds }}s</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
 
-  <!-- File Watching -->
-  {% include "backup/components/_card_section_start.html" with title="File Watching" extra_class="mb-3" %}
-    <div class="mb-4">
-      {% include "backup/components/_form_field.html" with field=form.watch_enabled tooltip="Monitors flows.json for changes and creates a backup automatically when the file is modified." %}
-    </div>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {% include "backup/components/_form_field.html" with field=form.watch_debounce_seconds tooltip="After a file change is detected, the watcher waits this many seconds for additional changes before creating a backup. Prevents duplicate backups from rapid saves." %}
-    </div>
-  {% include "backup/components/_card_section_end.html" %}
+<!-- Schedule -->
+{% include "backup/components/_card_section_start.html" with title="Schedule" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Scheduled Backups</th>
+        <td class="px-4 py-2">{% if config.schedule_enabled %}Enabled{% else %}Disabled{% endif %}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Frequency</th>
+        <td class="px-4 py-2">{{ config.get_backup_frequency_display }}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Time</th>
+        <td class="px-4 py-2">{{ config.backup_time|time:"H:i" }}</td>
+      </tr>
+      {% if config.backup_frequency == "weekly" %}
+      <tr>
+        <th class="th-label">Day</th>
+        <td class="px-4 py-2">{{ config.backup_day|add:0 }}</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <th class="th-label">Always Backup</th>
+        <td class="px-4 py-2">{% if config.always_backup %}Yes{% else %}No{% endif %}</td>
+      </tr>
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
 
-  <!-- Backup Contents -->
-  {% include "backup/components/_card_section_start.html" with title="Backup Contents" extra_class="mb-3" %}
-    <div class="space-y-2">
-      {% include "backup/components/_form_field.html" with field=form.backup_credentials tooltip="Include the Node-RED credentials file in backups. Contains encrypted passwords and API keys used by your flows." %}
-      {% include "backup/components/_form_field.html" with field=form.backup_settings tooltip="Include the Node-RED settings file in backups. Contains runtime configuration like port, authentication, and logging." %}
-    </div>
-  {% include "backup/components/_card_section_end.html" %}
+<!-- Change Detection -->
+{% include "backup/components/_card_section_start.html" with title="Change Detection" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">{% if config.source_type == "local" %}File Watching{% else %}API Polling{% endif %}</th>
+        <td class="px-4 py-2">{% if config.watch_enabled %}Enabled{% else %}Disabled{% endif %}</td>
+      </tr>
+      {% if config.source_type == "local" %}
+      <tr>
+        <th class="th-label">Debounce</th>
+        <td class="px-4 py-2">{{ config.watch_debounce_seconds }}s</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
 
-  <!-- Retention -->
-  {% include "backup/components/_card_section_start.html" with title="Retention" extra_class="mb-3" %}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.max_backups tooltip="The total number of backups to keep. When exceeded, the oldest unpinned backups are deleted first." %}
-      {% include "backup/components/_form_field.html" with field=form.max_age_days tooltip="Unpinned backups older than this are automatically deleted during retention cleanup." %}
-    </div>
-  {% include "backup/components/_card_section_end.html" %}
+{% if config.source_type == "local" %}
+<!-- Backup Contents -->
+{% include "backup/components/_card_section_start.html" with title="Backup Contents" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Include Credentials</th>
+        <td class="px-4 py-2">{% if config.backup_credentials %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Include Settings</th>
+        <td class="px-4 py-2">{% if config.backup_settings %}Yes{% else %}No{% endif %}</td>
+      </tr>
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
 
-  <!-- Restore -->
-  {% include "backup/components/_card_section_start.html" with title="Restore" extra_class="mb-3" %}
-    <div class="mb-4">
-      {% include "backup/components/_form_field.html" with field=form.restart_on_restore tooltip="Automatically restart the Node-RED container after restoring a backup so changes take effect immediately." %}
-    </div>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {% include "backup/components/_form_field.html" with field=form.nodered_container_name tooltip="The Docker container name for Node-RED. Used to restart the container after a restore." %}
-    </div>
-  {% include "backup/components/_card_section_end.html" %}
+<!-- Retention -->
+{% include "backup/components/_card_section_start.html" with title="Retention" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Max Backups</th>
+        <td class="px-4 py-2">{{ config.max_backups }}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Max Age</th>
+        <td class="px-4 py-2">{{ config.max_age_days }} days</td>
+      </tr>
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
 
-  <div class="flex gap-2">
-    <button type="submit" class="btn-primary">Save Settings</button>
-    <a href="{% url 'dashboard' %}" class="btn-secondary px-4 py-2">Cancel</a>
-  </div>
-</form>
+{% if config.source_type == "local" %}
+<!-- Restore -->
+{% include "backup/components/_card_section_start.html" with title="Restore" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Restart on Restore</th>
+        <td class="px-4 py-2">{% if config.restart_on_restore %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      <tr>
+        <th class="th-label">Container Name</th>
+        <td class="px-4 py-2"><code>{{ config.nodered_container_name }}</code></td>
+      </tr>
+    </tbody>
+  </table>
+{% include "backup/components/_card_section_end.html" %}
+{% endif %}
+
+<!-- Danger Zone -->
+{% include "backup/components/_card_section_start.html" with title="Danger Zone" extra_class="mb-3" %}
+  <a href="{% url 'instance_delete' config.slug %}" class="btn-danger">Delete Instance</a>
+{% include "backup/components/_card_section_end.html" %}
 {% endblock %}

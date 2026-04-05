@@ -5,6 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
+  {% if config %}
+  <meta name="instance-api-base" content="/api/instance/{{ config.slug }}/">
+  <meta name="instance-base" content="/instance/{{ config.slug }}/">
+  {% endif %}
   <title>{% block title %}FlowHistory{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'backup/css/tailwind.css' %}">
 </head>
@@ -13,7 +17,9 @@
     <div class="flex items-center justify-between">
       <a href="{% url 'dashboard' %}" class="text-lg font-bold text-gray-900 dark:text-gray-100">FlowHistory</a>
       <div class="flex items-center gap-2">
-        <a href="{% url 'settings' %}" class="btn-secondary">Settings</a>
+        {% if config %}
+        <a href="{% url 'instance_settings' config.slug %}" class="btn-secondary">Settings</a>
+        {% endif %}
         <button id="theme-toggle" title="Toggle theme" class="btn-secondary">
           <span id="theme-icon"></span>
         </button>

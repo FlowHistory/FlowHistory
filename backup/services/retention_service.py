@@ -6,22 +6,20 @@ from pathlib import Path
 
 from django.utils import timezone
 
-from backup.models import BackupRecord, NodeRedConfig
+from backup.models import BackupRecord
 
 logger = logging.getLogger(__name__)
 
 
-def apply_retention(config=None):
+def apply_retention(config):
     """Delete backups exceeding max_backups count and max_age_days age.
 
     Args:
-        config: NodeRedConfig instance. Fetched via get_or_create(pk=1) if None.
+        config: NodeRedConfig instance.
 
     Returns:
         {"deleted_by_count": int, "deleted_by_age": int, "errors": [str]}
     """
-    if config is None:
-        config, _ = NodeRedConfig.objects.get_or_create(pk=1)
 
     errors = []
     now = timezone.now()

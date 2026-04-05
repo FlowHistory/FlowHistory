@@ -1,75 +1,76 @@
 """Create and manage FlowHistory backup archives."""
 
 import hashlib
+import json
 import logging
 import tarfile
 import uuid
 from io import BytesIO
 from pathlib import Path
 
-from django.conf import settings
 from django.utils import timezone
 
-from backup.models import BackupRecord, NodeRedConfig
+from backup.models import BackupRecord
 from backup.services.diff_service import diff_tab_summaries, parse_flows_from_archive
-from backup.services.flow_parser import get_tab_names, parse_flows_file
+from backup.services.flow_parser import parse_flows
 
 logger = logging.getLogger(__name__)
 
 
-def create_backup(config=None, trigger="manual"):
+def create_backup(config, trigger="manual", flows_data=None):
     """Create a tar.gz backup of Node-RED files.
 
     Args:
-        config: NodeRedConfig instance (fetched/created if None).
+        config: NodeRedConfig instance.
         trigger: One of "manual", "scheduled", "file_change", "pre_restore".
+        flows_data: Raw flows JSON (str or bytes). If provided, used instead of
+                    reading from config.flows_path (for remote instances).
 
     Returns:
         BackupRecord on success, None if skipped (dedup match).
     """
-    if config is None:
-        config, _ = NodeRedConfig.objects.get_or_create(pk=1)
-
-    flows_path = Path(config.flows_path)
     now = timezone.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     short_id = uuid.uuid4().hex[:8]
     filename = f"flowhistory_{timestamp}_{short_id}.tar.gz"
-    dest = Path(settings.BACKUP_DIR) / filename
+    backup_dir = config.backup_dir
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    dest = backup_dir / filename
 
-    # Validate flows.json exists
-    if not flows_path.is_file():
-        return _fail(config, filename, dest, trigger, f"flows.json not found at {flows_path}")
+    if flows_data is not None:
+        flows_bytes = flows_data if isinstance(flows_data, bytes) else flows_data.encode()
+        is_local = False
+    else:
+        flows_path = Path(config.flows_path)
+        if not flows_path.is_file():
+            return _fail(config, filename, dest, trigger, f"flows.json not found at {flows_path}")
+        flows_bytes = flows_path.read_bytes()
+        is_local = True
 
-    # Compute checksum of flows.json for deduplication
-    flows_bytes = flows_path.read_bytes()
     checksum = hashlib.sha256(flows_bytes).hexdigest()
 
-    # Skip if identical to last successful backup (except manual/pre_restore)
+    # Fetch last backup once — used for both dedup and changes
+    last = (
+        BackupRecord.objects
+        .filter(config=config, status="success")
+        .order_by("-created_at")
+        .first()
+    )
+
     if trigger == "file_change" or (trigger == "scheduled" and not config.always_backup):
-        last = (
-            BackupRecord.objects
-            .filter(config=config, status="success")
-            .order_by("-created_at")
-            .first()
-        )
         if last and last.checksum == checksum:
             logger.info("Skipping backup — flows.json unchanged (checksum match)")
             return None
 
-    # Build the tar.gz archive
     try:
-        archive_size = _create_archive(dest, config, flows_path, flows_bytes)
+        archive_size = _create_archive(dest, config, is_local, flows_bytes)
     except OSError as e:
         return _fail(config, filename, dest, trigger, f"Failed to create archive: {e}")
 
-    # Parse flow structure for tab summary
-    tab_summary = get_tab_names(str(flows_path))
+    current_parsed = _parse_flows_bytes(flows_bytes)
+    tab_summary = [t["label"] for t in current_parsed["tabs"]] if current_parsed else []
+    changes_summary = _compute_changes(last, current_parsed)
 
-    # Compute changes vs previous backup
-    changes_summary = _compute_changes(config, flows_path)
-
-    # Save record
     record = BackupRecord.objects.create(
         config=config,
         created_at=now,
@@ -81,21 +82,18 @@ def create_backup(config=None, trigger="manual"):
         trigger=trigger,
         tab_summary=tab_summary,
         changes_summary=changes_summary,
-        includes_credentials=config.backup_credentials and _cred_path(config).is_file(),
-        includes_settings=config.backup_settings and _settings_path(config).is_file(),
+        includes_credentials=is_local and config.backup_credentials and _cred_path(config).is_file(),
+        includes_settings=is_local and config.backup_settings and _settings_path(config).is_file(),
     )
 
-    # Update config
     config.last_successful_backup = now
     config.last_backup_error = ""
     config.save(update_fields=["last_successful_backup", "last_backup_error"])
 
     logger.info("Backup created: %s (%d bytes)", filename, archive_size)
 
-    # Run retention cleanup after successful backup
     try:
         from backup.services.retention_service import apply_retention
-
         apply_retention(config)
     except Exception:
         logger.warning("Retention cleanup failed after backup", exc_info=True)
@@ -103,21 +101,27 @@ def create_backup(config=None, trigger="manual"):
     return record
 
 
-def _create_archive(dest, config, flows_path, flows_bytes):
+def _parse_flows_bytes(flows_bytes):
+    """Parse flows JSON bytes into structured summary. Returns None on failure."""
+    try:
+        return parse_flows(json.loads(flows_bytes))
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _create_archive(dest, config, is_local, flows_bytes):
     """Create a tar.gz at dest containing the backup files. Returns archive size."""
     with tarfile.open(dest, "w:gz") as tar:
-        # Always include flows.json
         _add_bytes_to_tar(tar, "flows.json", flows_bytes)
 
-        # Optional: flows_cred.json
-        cred_path = _cred_path(config)
-        if config.backup_credentials and cred_path.is_file():
-            tar.add(str(cred_path), arcname="flows_cred.json")
+        if is_local:
+            cred_path = _cred_path(config)
+            if config.backup_credentials and cred_path.is_file():
+                tar.add(str(cred_path), arcname="flows_cred.json")
 
-        # Optional: settings.js
-        settings_path = _settings_path(config)
-        if config.backup_settings and settings_path.is_file():
-            tar.add(str(settings_path), arcname="settings.js")
+            settings_path = _settings_path(config)
+            if config.backup_settings and settings_path.is_file():
+                tar.add(str(settings_path), arcname="settings.js")
 
     return dest.stat().st_size
 
@@ -130,46 +134,39 @@ def _add_bytes_to_tar(tar, arcname, data):
     tar.addfile(info, BytesIO(data))
 
 
-def _compute_changes(config, flows_path):
-    """Compare current flows.json against the previous backup's flows.json.
+def _compute_changes(last_backup, current_parsed):
+    """Compare current parsed flows against the previous backup's flows.
 
-    Returns a dict like:
-        {"tabs_added": [...], "tabs_removed": [...], "tabs_modified": [...]}
-    or empty dict if no previous backup exists.
+    Args:
+        last_backup: Last successful BackupRecord, or None.
+        current_parsed: Parsed flow structure from parse_flows(), or None.
+
+    Returns:
+        Dict with tabs_added/removed/modified, or empty dict.
     """
-    last = (
-        BackupRecord.objects
-        .filter(config=config, status="success")
-        .order_by("-created_at")
-        .first()
-    )
-    if not last or not last.file_path:
+    if not last_backup or not last_backup.file_path or current_parsed is None:
         return {}
 
-    last_archive = Path(last.file_path)
+    last_archive = Path(last_backup.file_path)
     if not last_archive.is_file():
         return {}
 
-    # Extract previous flows.json from archive
     try:
         prev_parsed = parse_flows_from_archive(last_archive)
     except (tarfile.TarError, OSError, KeyError):
         return {}
 
-    current_parsed = parse_flows_file(str(flows_path))
-    if prev_parsed is None or current_parsed is None:
+    if prev_parsed is None:
         return {}
 
     return diff_tab_summaries(prev_parsed, current_parsed)
 
 
 def _cred_path(config):
-    """Path to flows_cred.json alongside flows.json."""
     return Path(config.flows_path).parent / "flows_cred.json"
 
 
 def _settings_path(config):
-    """Path to settings.js alongside flows.json."""
     return Path(config.flows_path).parent / "settings.js"
 
 

@@ -4,8 +4,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", secrets.token_urlsafe(50))
-
 DEBUG = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = [
@@ -60,6 +58,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database — SQLite with WAL mode
 DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR / "data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _get_or_create_secret_key():
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+    key_file = DATA_DIR / ".secret_key"
+    try:
+        return key_file.read_text().strip()
+    except FileNotFoundError:
+        key = secrets.token_urlsafe(50)
+        key_file.write_text(key)
+        return key
+
+
+SECRET_KEY = _get_or_create_secret_key()
 
 DATABASES = {
     "default": {
@@ -124,7 +138,6 @@ REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "false").lower() in ("true", "1", 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 LOGIN_URL = "/login/"
 
-# Node-RED paths
-NODERED_DATA_PATH = os.environ.get("NODERED_DATA_PATH", "/nodered-data")
+# Backup storage
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)

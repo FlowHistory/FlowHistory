@@ -1,0 +1,49 @@
+{% extends "backup/base.html" %}
+
+{% block title %}Add Instance — FlowHistory{% endblock %}
+
+{% block content %}
+{% include "backup/components/_breadcrumb.html" with items=breadcrumb_items %}
+
+<div class="mb-4">
+  <h1 class="text-xl font-semibold">Add Instance</h1>
+</div>
+
+<div class="mx-auto max-w-2xl">
+  <div class="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+    Instances are configured via environment variables in your <code>.env</code> file. Add the variables below and restart the container.
+  </div>
+
+  {% include "backup/components/_card_section_start.html" with title="Local Instance (file-based)" extra_class="mb-3" %}
+    <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">For Node-RED running on the same Docker host:</p>
+    <pre class="rounded-md bg-gray-100 p-3 text-xs dark:bg-gray-900"><code># Add to .env — replace PREFIX with a unique name (e.g., LOCAL, DEV)
+FLOWHISTORY_PREFIX_FLOWS_PATH=/nodered-data/flows.json
+FLOWHISTORY_PREFIX_NAME=My Node-RED</code></pre>
+  {% include "backup/components/_card_section_end.html" %}
+
+  {% include "backup/components/_card_section_start.html" with title="Remote Instance (API-based)" extra_class="mb-3" %}
+    <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">For Node-RED on another server:</p>
+    <pre class="rounded-md bg-gray-100 p-3 text-xs dark:bg-gray-900"><code># Add to .env — replace PREFIX with a unique name (e.g., PROD, STAGING)
+FLOWHISTORY_PREFIX_URL=http://192.168.1.50:1880
+FLOWHISTORY_PREFIX_USER=admin
+FLOWHISTORY_PREFIX_PASS=yourpassword
+FLOWHISTORY_PREFIX_NAME=Production</code></pre>
+  {% include "backup/components/_card_section_end.html" %}
+
+  {% include "backup/components/_card_section_start.html" with title="Optional Settings" extra_class="mb-3" %}
+    <pre class="rounded-md bg-gray-100 p-3 text-xs dark:bg-gray-900"><code># Schedule
+FLOWHISTORY_PREFIX_SCHEDULE=daily        # hourly, daily, weekly
+FLOWHISTORY_PREFIX_TIME=03:00
+FLOWHISTORY_PREFIX_ALWAYS_BACKUP=false
+
+# Retention
+FLOWHISTORY_PREFIX_MAX_BACKUPS=20
+FLOWHISTORY_PREFIX_MAX_AGE_DAYS=30
+
+# Remote polling
+FLOWHISTORY_PREFIX_POLL_INTERVAL=60      # seconds</code></pre>
+  {% include "backup/components/_card_section_end.html" %}
+
+  <a href="{% url 'dashboard' %}" class="btn-secondary">Back to Dashboard</a>
+</div>
+{% endblock %}
