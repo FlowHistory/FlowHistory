@@ -94,8 +94,16 @@ class NodeRedConfig(models.Model):
                 slug = f"{base}-{n}"
             self.slug = slug
         if not self.color:
-            idx = NodeRedConfig.objects.exclude(pk=self.pk).count() % len(self.INSTANCE_COLORS)
-            self.color = self.INSTANCE_COLORS[idx]
+            used = set(
+                NodeRedConfig.objects.exclude(pk=self.pk).values_list("color", flat=True)
+            )
+            for c in self.INSTANCE_COLORS:
+                if c not in used:
+                    self.color = c
+                    break
+            else:
+                # All colors used — fall back to modulo
+                self.color = self.INSTANCE_COLORS[len(used) % len(self.INSTANCE_COLORS)]
         super().save(*args, **kwargs)
 
 

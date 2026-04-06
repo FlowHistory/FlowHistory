@@ -131,7 +131,12 @@ def _verify_checksum(record):
 def _create_safety_backup(config):
     """Create a pre-restore safety backup. Returns BackupRecord or None."""
     try:
-        result = create_backup(config=config, trigger="pre_restore")
+        flows_data = None
+        if config.source_type == "remote":
+            from backup.services.remote_service import fetch_remote_flows
+            flows_data, _ = fetch_remote_flows(config)
+
+        result = create_backup(config=config, trigger="pre_restore", flows_data=flows_data)
         if result and result.status == "success":
             logger.info("Pre-restore safety backup created: %s", result.filename)
             return result

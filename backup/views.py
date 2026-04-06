@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import BackupRecord, NodeRedConfig, RestoreRecord
@@ -77,7 +78,7 @@ def dashboard(request):
 def instance_add(request):
     return render(request, "backup/instance_add.html", {
         "breadcrumb_items": [
-            {"label": "Dashboard", "url": "/"},
+            {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": "Add Instance"},
         ],
     })
@@ -118,7 +119,7 @@ def instance_settings(request, slug):
         "config": config,
         "has_credentials": bool(username),
         "breadcrumb_items": [
-            {"label": "Dashboard", "url": "/"},
+            {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},
             {"label": "Settings"},
         ],
@@ -142,6 +143,15 @@ def instance_delete(request, slug):
             if backup_dir.is_dir():
                 shutil.rmtree(backup_dir, ignore_errors=True)
 
+        # Remove orphaned APScheduler jobs before deleting the config
+        try:
+            from django_apscheduler.models import DjangoJob
+            DjangoJob.objects.filter(
+                id__in=[f"backup_{config.pk}", f"retention_{config.pk}"]
+            ).delete()
+        except Exception:
+            logger.warning("Could not clean up scheduler jobs for %s", name)
+
         config.delete()
         messages.success(request, f'Instance "{name}" deleted.')
         return redirect("dashboard")
@@ -155,7 +165,7 @@ def instance_delete(request, slug):
         "backup_count": backups.count(),
         "total_size": total_size,
         "breadcrumb_items": [
-            {"label": "Dashboard", "url": "/"},
+            {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},
             {"label": "Delete"},
         ],
@@ -196,7 +206,7 @@ def backup_detail(request, slug, backup_id):
         "restores": restores,
         "backup_includes": ", ".join(includes),
         "breadcrumb_items": [
-            {"label": "Dashboard", "url": "/"},
+            {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},
             {"label": "Backup Detail"},
         ],
@@ -363,7 +373,7 @@ def diff_view(request, slug, backup_id, compare_id=None):
         "summary_stats": summary_stats,
         "all_backups": all_backups,
         "breadcrumb_items": [
-            {"label": "Dashboard", "url": "/"},
+            {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},
             {"label": "Diff"},
         ],

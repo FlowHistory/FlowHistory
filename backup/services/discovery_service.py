@@ -44,6 +44,10 @@ def _bool_env(value):
     return value.lower() in ("true", "1", "yes")
 
 
+_VALID_FREQUENCIES = {"hourly", "daily", "weekly"}
+_VALID_DAYS = set(range(7))  # 0=Monday .. 6=Sunday
+
+
 def _build_config_kwargs(prefix, source_type):
     """Build kwargs dict for NodeRedConfig creation from env vars."""
     kwargs = {
@@ -76,6 +80,17 @@ def _build_config_kwargs(prefix, source_type):
         value = os.environ.get(f"FLOWHISTORY_{prefix}_{env_suffix}")
         if value is not None:
             kwargs[field_name] = converter(value)
+
+    # Validate enum fields
+    freq = kwargs.get("backup_frequency")
+    if freq is not None and freq not in _VALID_FREQUENCIES:
+        logger.warning("Invalid FLOWHISTORY_%s_SCHEDULE=%r, using default 'daily'", prefix, freq)
+        del kwargs["backup_frequency"]
+
+    day = kwargs.get("backup_day")
+    if day is not None and day not in _VALID_DAYS:
+        logger.warning("Invalid FLOWHISTORY_%s_DAY=%r, using default 0", prefix, day)
+        del kwargs["backup_day"]
 
     bool_map = {
         "WATCH": "watch_enabled",
