@@ -38,4 +38,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0019](0019-tooltip-component.md) | Tooltip Component for Settings | **Implemented** |
 | [0020](0020-simplify-defaults-and-env-vars.md) | Simplify Default Settings and Reduce Env Vars | **Implemented** |
 | [0021](0021-instance-credential-storage.md) | Instance Credential Storage | **Implemented** |
-| [0022](0022-notification-system.md) | Notification System | **Proposed** |
+| [0022](0022-notification-system.md) | Notification System | **Accepted** |

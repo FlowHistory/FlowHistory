@@ -1,7 +1,7 @@
 # ADR 0022: Notification System
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 

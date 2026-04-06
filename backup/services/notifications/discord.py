@@ -2,7 +2,6 @@
 
 import json
 import logging
-import os
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -67,6 +66,7 @@ class DiscordBackend(NotificationBackend):
         req = Request(webhook_url, data=body, headers={"Content-Type": "application/json"})
 
         try:
-            urlopen(req, timeout=TIMEOUT_SECONDS)
-        except (URLError, OSError) as exc:
+            with urlopen(req, timeout=TIMEOUT_SECONDS) as response:
+                response.read()
+        except (URLError, OSError, ValueError) as exc:
             logger.warning("Discord webhook failed: %s", exc)

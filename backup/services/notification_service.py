@@ -47,6 +47,11 @@ def get_configured_backends(config):
     return [b.name() for b in _get_backends() if b.is_configured(config)]
 
 
+def get_configured_backends_objects(config):
+    """Return list of backend instances configured for this instance."""
+    return [b for b in _get_backends() if b.is_configured(config)]
+
+
 def notify(config, payload):
     """Send a notification to all configured backends if the event is enabled.
 

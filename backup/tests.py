@@ -1958,6 +1958,7 @@ class GetNotificationUrlTest(TestCase):
             "https://instance.url",
         )
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_no_env_returns_empty(self):
         self.assertEqual(self.config.get_notification_url("DISCORD_WEBHOOK_URL"), "")
 
@@ -2051,6 +2052,7 @@ class DiscordBackendTest(TestCase):
         backend = DiscordBackend()
         self.assertTrue(backend.is_configured(self.config))
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_url(self):
         from backup.services.notifications.discord import DiscordBackend
         backend = DiscordBackend()
@@ -2240,6 +2242,7 @@ class ApiTestNotificationTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_no_backends_returns_400(self):
         resp = self.client.post(
             f"/api/instance/{self.config.slug}/notifications/test/"

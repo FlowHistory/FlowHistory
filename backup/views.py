@@ -625,11 +625,11 @@ def api_bulk_action(request, slug):
 @require_POST
 def api_test_notification(request, slug):
     """Send a test notification to all configured backends for this instance."""
-    from .services.notification_service import get_configured_backends, _get_backends
+    from .services.notification_service import get_configured_backends_objects
     from .services.notifications.base import NotificationPayload, NotifyEvent
 
     config = _get_config(slug)
-    backends = [b for b in _get_backends() if b.is_configured(config)]
+    backends = get_configured_backends_objects(config)
     if not backends:
         return JsonResponse(
             {"status": "error", "message": "No notification backends configured for this instance"},

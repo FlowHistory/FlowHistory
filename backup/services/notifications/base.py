@@ -59,6 +59,6 @@ class NotificationBackend(abc.ABC):
     def send(self, config, payload: NotificationPayload) -> None:
         """Deliver a notification using this instance's config.
 
-        Must not raise — log errors internally.
+        Should log errors internally. Callers catch exceptions as a safety net.
         """
         ...
