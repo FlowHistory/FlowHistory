@@ -111,10 +111,27 @@ def instance_dashboard(request, slug):
 def instance_settings(request, slug):
     config = _get_config(slug)
     username, password = config.get_nodered_credentials()
+
+    from .services.notification_service import get_configured_backends
+    notification_backends = get_configured_backends(config)
+
+    # Check Discord config source (instance-specific vs global)
+    discord_instance = bool(
+        config.env_prefix
+        and os.environ.get(f"FLOWHISTORY_{config.env_prefix.upper()}_DISCORD_WEBHOOK_URL", "").strip()
+    )
+    discord_global = bool(
+        os.environ.get("FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL", "").strip()
+    )
+
     return render(request, "backup/settings.html", {
         "config": config,
         "has_credentials": bool(username),
         "defaults": NodeRedConfig.get_field_defaults(),
+        "notification_backends": notification_backends,
+        "discord_instance": discord_instance,
+        "discord_global": discord_global,
+        "has_any_notification_backend": bool(notification_backends),
         "breadcrumb_items": [
             {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},
@@ -603,6 +620,46 @@ def api_bulk_action(request, slug):
         "affected": affected,
         "errors": errors,
     })
+
+
+@require_POST
+def api_test_notification(request, slug):
+    """Send a test notification to all configured backends for this instance."""
+    from .services.notification_service import get_configured_backends, _get_backends
+    from .services.notifications.base import NotificationPayload, NotifyEvent
+
+    config = _get_config(slug)
+    backends = [b for b in _get_backends() if b.is_configured(config)]
+    if not backends:
+        return JsonResponse(
+            {"status": "error", "message": "No notification backends configured for this instance"},
+            status=400,
+        )
+
+    payload = NotificationPayload(
+        event=NotifyEvent.BACKUP_SUCCESS,
+        instance_name=config.name,
+        instance_slug=config.slug,
+        instance_color=config.color,
+        title=f"Test notification \u2014 {config.name}",
+        message="This is a test notification from FlowHistory.",
+        trigger="test",
+    )
+
+    errors = []
+    sent = []
+    for backend in backends:
+        try:
+            backend.send(config, payload)
+            sent.append(backend.name())
+        except Exception as e:
+            errors.append(f"{backend.name()}: {e}")
+
+    if errors and not sent:
+        return JsonResponse({"status": "error", "errors": errors}, status=500)
+    if errors:
+        return JsonResponse({"status": "partial", "backends": sent, "errors": errors})
+    return JsonResponse({"status": "success", "backends": sent})
 
 
 @require_POST

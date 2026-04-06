@@ -62,6 +62,15 @@ class NodeRedConfig(models.Model):
     last_successful_backup = models.DateTimeField(null=True, blank=True)
     last_backup_error = models.TextField(blank=True, default="")
 
+    # Notifications
+    notify_enabled = models.BooleanField(default=True)
+    notify_events = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text='Comma-separated events, "all", "none", or blank for defaults.',
+    )
+
     class Meta:
         verbose_name = "Node-RED Configuration"
 
@@ -96,6 +105,14 @@ class NodeRedConfig(models.Model):
         username = os.environ.get(f"FLOWHISTORY_{prefix}_USER", "")
         password = os.environ.get(f"FLOWHISTORY_{prefix}_PASS", "")
         return username, password
+
+    def get_notification_url(self, backend_field):
+        """Read notification URL from env vars: per-instance first, then global fallback."""
+        if self.env_prefix:
+            url = os.environ.get(f"FLOWHISTORY_{self.env_prefix.upper()}_{backend_field}")
+            if url:
+                return url.strip()
+        return os.environ.get(f"FLOWHISTORY_NOTIFY_{backend_field}", "").strip()
 
     def save(self, *args, **kwargs):
         """Auto-generate slug from name with uniqueness dedup."""

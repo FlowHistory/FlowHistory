@@ -16,6 +16,7 @@ A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker 
 - **Retention policies** — by max count and max age, with protection for pinned and recent safety backups
 - **Credentials and settings backup** — optionally include flows_cred.json and settings.js (local only)
 - **Labels and notes** — annotate backups with descriptions
+- **Notifications** — Discord webhook alerts for backup failures, restores, and more (extensible to Slack, Telegram, etc.)
 - **Dark mode** — with system preference detection and manual toggle
 - **Optional password auth** — simple shared password via environment variable
 - **Health check endpoint** — for Docker healthcheck integration
@@ -157,6 +158,21 @@ All instance settings use the `FLOWHISTORY_{PREFIX}_{FIELD}` convention. FlowHis
 | `_RESTART_ON_RESTORE` | `false` | Restart container after restore (local) |
 | `_CONTAINER_NAME` | `nodered` | Docker container name for restart (local) |
 | `_COLOR` | Auto-assigned | Hex color for UI accent (e.g., `#3B82F6`) |
+| `_NOTIFY` | `true` | Enable notifications for this instance |
+| `_NOTIFY_EVENTS` | *(defaults)* | Comma-separated events, `all`, `none`, or blank for defaults |
+| `_DISCORD_WEBHOOK_URL` | | Per-instance Discord webhook URL (overrides global) |
+
+### Notifications
+
+Notification backend credentials use the `FLOWHISTORY_NOTIFY_{BACKEND}_{FIELD}` convention for global config. Per-instance overrides use the standard `FLOWHISTORY_{PREFIX}_{FIELD}` pattern.
+
+| Variable | Description |
+|----------|-------------|
+| `FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL` | Global Discord webhook (applies to all instances without their own) |
+
+Webhook URLs are read from the environment at runtime and never stored in the database. Per-instance `_DISCORD_WEBHOOK_URL` takes priority over the global webhook.
+
+Default notification events: `backup_failed`, `restore_success`, `restore_failed`. Set `_NOTIFY_EVENTS=all` to receive all events, or `_NOTIFY_EVENTS=none` to silence an instance.
 
 Env vars seed the database on first creation only. To re-apply env var values to existing instances, run:
 
@@ -187,6 +203,7 @@ All backup/restore endpoints are scoped to an instance by slug.
 | `/api/instance/<slug>/bulk/` | POST | Bulk action (pin/unpin/delete) |
 | `/api/instance/<slug>/restore/<id>/` | POST | Restore from a backup |
 | `/api/instance/<slug>/test-connection/` | POST | Test remote connection |
+| `/api/instance/<slug>/notifications/test/` | POST | Send test notification |
 | `/health/` | GET | Health check |
 
 ## Development

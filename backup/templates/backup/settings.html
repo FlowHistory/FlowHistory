@@ -195,6 +195,48 @@
   </table>
 {% include "backup/components/_card_section_end.html" %}
 
+<!-- Notifications -->
+{% include "backup/components/_card_section_start.html" with title="Notifications" body_class="p-0" extra_class="mb-3" %}
+  <table class="w-full text-sm">
+    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      <tr>
+        <th class="th-label w-48">Notifications {% include "backup/components/_tooltip.html" with text="Master switch to enable or disable all notifications for this instance. Set via _NOTIFY env var." %}</th>
+        <td class="px-4 py-2">{% if config.notify_enabled %}Enabled{% else %}Disabled{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.notify_enabled|default_label:defaults.notify_enabled }}</span></td>
+      </tr>
+      <tr>
+        <th class="th-label">Events {% include "backup/components/_tooltip.html" with text="Which events trigger notifications. Comma-separated list, 'all', 'none', or blank for defaults (backup_failed, restore_success, restore_failed). Set via _NOTIFY_EVENTS env var." %}</th>
+        <td class="px-4 py-2">
+          {% if config.notify_events %}
+            <code>{{ config.notify_events }}</code>
+          {% else %}
+            <span class="text-gray-400">Defaults</span>
+            <span class="ml-1 text-xs text-gray-400">(backup_failed, restore_success, restore_failed)</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th class="th-label">Discord {% include "backup/components/_tooltip.html" with text="Discord webhook URL. Set per-instance via _DISCORD_WEBHOOK_URL env var, or globally via FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL." %}</th>
+        <td class="px-4 py-2">
+          {% if discord_instance %}
+            <span class="text-green-600 dark:text-green-400">Configured</span>
+            <span class="ml-1 text-xs text-gray-400">(instance)</span>
+          {% elif discord_global %}
+            <span class="text-green-600 dark:text-green-400">Configured</span>
+            <span class="ml-1 text-xs text-gray-400">(global)</span>
+          {% else %}
+            <span class="text-gray-400">Not configured</span>
+          {% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  {% if has_any_notification_backend %}
+  <div class="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+    <button id="btn-test-notification" class="btn-secondary text-xs" onclick="testNotification()">Send Test Notification</button>
+  </div>
+  {% endif %}
+{% include "backup/components/_card_section_end.html" %}
+
 <!-- Restore -->
 {% include "backup/components/_card_section_start.html" with title="Restore" body_class="p-0" extra_class="mb-3" %}
   <table class="w-full text-sm">

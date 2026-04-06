@@ -17,6 +17,8 @@ _KNOWN_FIELDS = {
     "POLL_INTERVAL", "WATCH", "DEBOUNCE", "ALWAYS_BACKUP",
     "BACKUP_CREDENTIALS", "BACKUP_SETTINGS", "RESTART_ON_RESTORE",
     "CONTAINER_NAME",
+    # Notifications (DISCORD_WEBHOOK_URL is runtime-only, not stored in DB)
+    "NOTIFY", "NOTIFY_EVENTS", "DISCORD_WEBHOOK_URL",
 }
 
 _ENV_PATTERN = re.compile(
@@ -83,6 +85,7 @@ def _build_config_kwargs(prefix, source_type):
         "POLL_INTERVAL": ("poll_interval_seconds", int),
         "DEBOUNCE": ("watch_debounce_seconds", int),
         "CONTAINER_NAME": ("nodered_container_name", str),
+        "NOTIFY_EVENTS": ("notify_events", str),
     }
     for env_suffix, (field_name, converter) in env_map.items():
         value = os.environ.get(f"FLOWHISTORY_{prefix}_{env_suffix}")
@@ -118,6 +121,7 @@ def _build_config_kwargs(prefix, source_type):
         "BACKUP_CREDENTIALS": "backup_credentials",
         "BACKUP_SETTINGS": "backup_settings",
         "RESTART_ON_RESTORE": "restart_on_restore",
+        "NOTIFY": "notify_enabled",
     }
     for env_suffix, field_name in bool_map.items():
         value = os.environ.get(f"FLOWHISTORY_{prefix}_{env_suffix}")

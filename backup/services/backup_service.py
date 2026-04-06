@@ -95,6 +95,8 @@ def create_backup(config, trigger="manual", flows_data=None):
 
     logger.info("Backup created: %s (%d bytes)", filename, archive_size)
 
+    _notify_backup(config, record)
+
     try:
         from backup.services.retention_service import apply_retention
         apply_retention(config)
@@ -173,6 +175,30 @@ def _settings_path(config):
     return Path(config.flows_path).parent / "settings.js"
 
 
+def _notify_backup(config, record):
+    """Send notification for a backup result."""
+    try:
+        from backup.services.notification_service import notify
+        from backup.services.notifications.base import NotificationPayload, NotifyEvent
+
+        is_success = record.status == "success"
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_SUCCESS if is_success else NotifyEvent.BACKUP_FAILED,
+            instance_name=config.name,
+            instance_slug=config.slug,
+            instance_color=config.color,
+            title=f"Backup {'successful' if is_success else 'failed'} \u2014 {config.name}",
+            message=record.filename if is_success else "Backup attempt failed.",
+            error=record.error_message if not is_success else None,
+            filename=record.filename,
+            file_size=record.file_size if is_success else None,
+            trigger=record.trigger,
+        )
+        notify(config, payload)
+    except Exception:
+        logger.warning("Notification failed after backup", exc_info=True)
+
+
 def _fail(config, filename, dest, trigger, error_msg):
     """Record a failed backup attempt and return the failed BackupRecord."""
     logger.error("Backup failed: %s", error_msg)
@@ -186,4 +212,5 @@ def _fail(config, filename, dest, trigger, error_msg):
     )
     config.last_backup_error = error_msg
     config.save(update_fields=["last_backup_error"])
+    _notify_backup(config, record)
     return record

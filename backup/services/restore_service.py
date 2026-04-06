@@ -83,19 +83,44 @@ def restore_backup(backup_id, restart=None):
     )
 
     logger.info("Restored from %s (%d files)", record.filename, len(files_restored))
+    _notify_restore(config, record, restore_record)
     return restore_record
+
+
+def _notify_restore(config, backup, restore_record):
+    """Send notification for a restore result."""
+    try:
+        from backup.services.notification_service import notify
+        from backup.services.notifications.base import NotificationPayload, NotifyEvent
+
+        is_success = restore_record.status == "success"
+        payload = NotificationPayload(
+            event=NotifyEvent.RESTORE_SUCCESS if is_success else NotifyEvent.RESTORE_FAILED,
+            instance_name=config.name,
+            instance_slug=config.slug,
+            instance_color=config.color,
+            title=f"Restore {'successful' if is_success else 'failed'} \u2014 {config.name}",
+            message=f"Restored from {backup.filename}" if is_success else "Restore attempt failed.",
+            error=restore_record.error_message if not is_success else None,
+            filename=backup.filename if backup else None,
+        )
+        notify(config, payload)
+    except Exception:
+        logger.warning("Notification failed after restore", exc_info=True)
 
 
 def _fail(config, backup, safety_backup, error_msg):
     """Record a failed restore attempt and return the RestoreRecord."""
     logger.error("Restore failed: %s", error_msg)
-    return RestoreRecord.objects.create(
+    restore_record = RestoreRecord.objects.create(
         config=config,
         backup=backup,
         safety_backup=safety_backup,
         status="failed",
         error_message=error_msg,
     )
+    _notify_restore(config, backup, restore_record)
+    return restore_record
 
 
 def _validate_backup(record):
@@ -176,6 +201,7 @@ def _restore_remote(record, config, safety_backup):
     )
 
     logger.info("Remote restore deployed to %s from %s", config.nodered_url, record.filename)
+    _notify_restore(config, record, restore_record)
     return restore_record
 
 
