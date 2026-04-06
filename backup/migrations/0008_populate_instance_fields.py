@@ -5,6 +5,9 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 
+RESERVED_SLUGS = {"add", "api"}
+
+
 def populate_instance_fields(apps, schema_editor):
     NodeRedConfig = apps.get_model("backup", "NodeRedConfig")
     used_slugs = set()
@@ -12,6 +15,8 @@ def populate_instance_fields(apps, schema_editor):
     for config in NodeRedConfig.objects.all():
         # Generate unique slug
         base = slugify(config.name) or "node-red"
+        if base in RESERVED_SLUGS:
+            base = f"{base}-instance"
         slug, n = base, 1
         while slug in used_slugs:
             n += 1

@@ -3,7 +3,6 @@
 import hashlib
 import json
 import logging
-import signal
 import threading
 
 import requests
@@ -208,11 +207,13 @@ class RemotePoller:
 
         try:
             result = create_backup(config=config, trigger="file_change", flows_data=flows_text)
-            if result and result.status == "success":
-                logger.info("Remote backup created for %s: %s", config.name, result.filename)
-            elif result is None:
+            if result is None:
                 logger.info("Remote backup skipped for %s — no changes", config.name)
-            return True
+                return False
+            if result.status == "success":
+                logger.info("Remote backup created for %s: %s", config.name, result.filename)
+                return True
+            return False
         except Exception:
             logger.exception("Failed to create backup from remote flows for %s", config.name)
             return False

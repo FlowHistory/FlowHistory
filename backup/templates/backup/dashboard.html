@@ -47,7 +47,7 @@
       </div>
       <div class="flex justify-between">
         <span>Last Backup</span>
-        <span>{% if inst.last_backup %}{{ inst.last_backup.created_at|timesince }} ago{% else %}Never{% endif %}</span>
+        <span>{% if inst.last_backup_at %}{{ inst.last_backup_at|timesince }} ago{% else %}Never{% endif %}</span>
       </div>
       <div class="flex justify-between">
         <span>Storage</span>

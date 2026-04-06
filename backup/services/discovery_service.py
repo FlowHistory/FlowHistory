@@ -60,9 +60,15 @@ def _build_config_kwargs(prefix, source_type):
     }
 
     if source_type == "remote":
-        kwargs["nodered_url"] = os.environ.get(f"FLOWHISTORY_{prefix}_URL", "")
+        url = os.environ.get(f"FLOWHISTORY_{prefix}_URL", "").strip()
+        if not url:
+            raise ValueError(f"FLOWHISTORY_{prefix}_URL is empty")
+        kwargs["nodered_url"] = url
     elif source_type == "local":
-        kwargs["flows_path"] = os.environ.get(f"FLOWHISTORY_{prefix}_FLOWS_PATH", "")
+        flows_path = os.environ.get(f"FLOWHISTORY_{prefix}_FLOWS_PATH", "").strip()
+        if not flows_path:
+            raise ValueError(f"FLOWHISTORY_{prefix}_FLOWS_PATH is empty")
+        kwargs["flows_path"] = flows_path
 
     # Optional fields — only set if env var exists
     env_map = {

@@ -33,7 +33,7 @@ def _get_config(slug):
 @require_GET
 def dashboard(request):
     """Aggregate dashboard. Auto-redirects if only 1 instance."""
-    from django.db.models import Count, Q, Sum
+    from django.db.models import Count, Max, Q, Sum
 
     configs = NodeRedConfig.objects.all()
     count = configs.count()
@@ -45,20 +45,15 @@ def dashboard(request):
     annotated = configs.annotate(
         backup_count=Count("backups", filter=Q(backups__status="success")),
         total_size=Sum("backups__file_size", filter=Q(backups__status="success")),
+        last_backup_at=Max("backups__created_at", filter=Q(backups__status="success")),
     )
 
     instances = []
     for config in annotated:
-        last_backup = (
-            BackupRecord.objects
-            .filter(config=config, status="success")
-            .only("created_at")
-            .first()
-        )
         instances.append({
             "config": config,
             "backup_count": config.backup_count,
-            "last_backup": last_backup,
+            "last_backup_at": config.last_backup_at,
             "total_size": config.total_size or 0,
             "is_healthy": not config.last_backup_error,
         })

@@ -22,7 +22,13 @@ def _scheduled_backup(config_id):
         if not config.schedule_enabled:
             logger.info("Scheduled backup skipped for %s — schedule_enabled is False", config.name)
             return
-        result = create_backup(config=config, trigger="scheduled")
+
+        flows_data = None
+        if config.source_type == "remote":
+            from backup.services.remote_service import fetch_remote_flows
+            flows_data, _ = fetch_remote_flows(config)
+
+        result = create_backup(config=config, trigger="scheduled", flows_data=flows_data)
         if result is None:
             logger.info("Scheduled backup skipped for %s — no changes", config.name)
         elif result.status == "success":
