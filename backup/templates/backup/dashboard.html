@@ -8,11 +8,6 @@
   <a href="{% url 'instance_add' %}" class="btn-secondary">Add Instance</a>
 </div>
 
-<!-- Global Stats -->
-<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-  {% include "backup/components/_stat_card.html" with label="Instances" value=total_instances %}
-</div>
-
 <!-- Instance Cards -->
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
   {% for inst in instances %}
