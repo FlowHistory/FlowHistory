@@ -66,12 +66,15 @@ def _get_or_create_secret_key():
         return env_key
     key_file = DATA_DIR / ".secret_key"
     try:
-        return key_file.read_text().strip()
+        key = key_file.read_text().strip()
+        if key:
+            return key
     except FileNotFoundError:
-        key = secrets.token_urlsafe(50)
-        key_file.write_text(key)
-        key_file.chmod(0o600)
-        return key
+        pass
+    key = secrets.token_urlsafe(50)
+    key_file.write_text(key)
+    key_file.chmod(0o600)
+    return key
 
 
 SECRET_KEY = _get_or_create_secret_key()

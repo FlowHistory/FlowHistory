@@ -14,7 +14,7 @@
 </div>
 
 <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-  Settings are configured via environment variables. Edit your <code>.env</code> file and restart the container to apply changes.
+  Settings are configured via environment variables. Env values seed instance settings on first discovery. Credential changes are picked up on restart. To reapply other settings, run <code>python manage.py discover_instances --force</code>.
   {% if config.env_prefix %}Prefix: <code>FLOWHISTORY_{{ config.env_prefix }}_*</code>{% endif %}
 </div>
 

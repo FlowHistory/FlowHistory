@@ -25,7 +25,7 @@ class Command(BaseCommand):
         from backup.models import NodeRedConfig
 
         has_local = NodeRedConfig.objects.filter(
-            is_enabled=True, source_type="local",
+            is_enabled=True, source_type="local", watch_enabled=True,
         ).exists()
 
         if has_local:

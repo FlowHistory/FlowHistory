@@ -181,7 +181,9 @@ def start_all_watchers():
     from backup.models import NodeRedConfig
 
     configs = list(
-        NodeRedConfig.objects.filter(is_enabled=True, source_type="local")
+        NodeRedConfig.objects.filter(
+            is_enabled=True, source_type="local", watch_enabled=True,
+        )
     )
     if not configs:
         logger.info("No enabled local instances found, watcher idle")

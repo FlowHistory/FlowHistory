@@ -264,7 +264,9 @@ def start_all_remote_pollers(stop_event):
     from backup.models import NodeRedConfig
 
     configs = list(
-        NodeRedConfig.objects.filter(is_enabled=True, source_type="remote")
+        NodeRedConfig.objects.filter(
+            is_enabled=True, source_type="remote", watch_enabled=True,
+        )
     )
     threads = []
 

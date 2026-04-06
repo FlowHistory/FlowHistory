@@ -4,6 +4,8 @@ import logging
 import os
 import re
 
+from django.core.exceptions import ValidationError
+
 from backup.models import NodeRedConfig
 
 logger = logging.getLogger(__name__)
@@ -152,12 +154,26 @@ def discover_instances_from_env(force=False):
             for field, value in kwargs.items():
                 if field != "env_prefix":
                     setattr(existing, field, value)
-            existing.save()
+            try:
+                existing.full_clean(exclude=["slug", "color", "nodered_url"])
+                existing.save()
+            except (ValidationError, ValueError) as exc:
+                logger.warning(
+                    "Invalid config for prefix %s, skipping update: %s", prefix, exc,
+                )
+                continue
             logger.info("Updated instance %s (pk=%d) from env vars", prefix, existing.pk)
             updated.append(prefix)
         else:
             config = NodeRedConfig(**kwargs)
-            config.save()
+            try:
+                config.full_clean(exclude=["slug", "color", "nodered_url"])
+                config.save()
+            except (ValidationError, ValueError) as exc:
+                logger.warning(
+                    "Invalid config for prefix %s, skipping creation: %s", prefix, exc,
+                )
+                continue
             logger.info(
                 "Created instance %s (pk=%d, slug=%s) from env vars",
                 prefix, config.pk, config.slug,
