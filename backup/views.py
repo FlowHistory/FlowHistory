@@ -114,6 +114,7 @@ def instance_settings(request, slug):
     return render(request, "backup/settings.html", {
         "config": config,
         "has_credentials": bool(username),
+        "defaults": NodeRedConfig.get_field_defaults(),
         "breadcrumb_items": [
             {"label": "Dashboard", "url": reverse("dashboard")},
             {"label": config.name, "url": config.get_absolute_url()},

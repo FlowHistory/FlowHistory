@@ -1,4 +1,5 @@
 {% extends "backup/base.html" %}
+{% load settings_tags %}
 
 {% block title %}{{ config.name }} Settings — FlowHistory{% endblock %}
 
@@ -15,7 +16,7 @@
 
 <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
   Settings are configured via environment variables. Env values seed instance settings on first discovery. Credential changes are picked up on restart. To reapply other settings, run <code>python manage.py discover_instances --force</code>.
-  {% if config.env_prefix %}Prefix: <code>FLOWHISTORY_{{ config.env_prefix }}_*</code>{% endif %}
+  {% if config.env_prefix %}Prefix: <code>FLOWHISTORY_{{ config.env_prefix }}_*</code>{% else %}This instance has no env prefix (added manually).{% endif %}
 </div>
 
 <!-- Instance -->
@@ -24,7 +25,7 @@
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
       <tr>
         <th class="th-label w-48">Name</th>
-        <td class="px-4 py-2">{{ config.name }}</td>
+        <td class="px-4 py-2">{{ config.name }} <span class="ml-1 text-xs text-gray-400">{{ config.name|default_label:defaults.name }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Slug</th>
@@ -32,18 +33,18 @@
       </tr>
       <tr>
         <th class="th-label">Source Type</th>
-        <td class="px-4 py-2">{{ config.get_source_type_display }}</td>
+        <td class="px-4 py-2">{{ config.get_source_type_display }} <span class="ml-1 text-xs text-gray-400">{{ config.source_type|default_label:defaults.source_type }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Enabled</th>
-        <td class="px-4 py-2">{% if config.is_enabled %}Yes{% else %}No{% endif %}</td>
+        <td class="px-4 py-2">{% if config.is_enabled %}Yes{% else %}No{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.is_enabled|default_label:defaults.is_enabled }}</span></td>
       </tr>
-      {% if config.env_prefix %}
       <tr>
         <th class="th-label">Env Prefix</th>
-        <td class="px-4 py-2"><code>FLOWHISTORY_{{ config.env_prefix }}_*</code></td>
+        <td class="px-4 py-2">
+          {% if config.env_prefix %}<code>FLOWHISTORY_{{ config.env_prefix }}_*</code>{% else %}<span class="text-gray-400 italic">Not set</span>{% endif %}
+        </td>
       </tr>
-      {% endif %}
     </tbody>
   </table>
 {% include "backup/components/_card_section_end.html" %}
@@ -55,11 +56,27 @@
       {% if config.source_type == "local" %}
       <tr>
         <th class="th-label w-48">Flows Path</th>
-        <td class="px-4 py-2"><code>{{ config.flows_path }}</code></td>
+        <td class="px-4 py-2"><code>{{ config.flows_path }}</code> <span class="ml-1 text-xs text-gray-400">{{ config.flows_path|default_label:defaults.flows_path }}</span></td>
+      </tr>
+      <tr class="opacity-50">
+        <th class="th-label">Node-RED URL</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — remote instances only</span></td>
+      </tr>
+      <tr class="opacity-50">
+        <th class="th-label">Credentials</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — remote instances only</span></td>
+      </tr>
+      <tr class="opacity-50">
+        <th class="th-label">Poll Interval</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — remote instances only</span></td>
       </tr>
       {% else %}
+      <tr class="opacity-50">
+        <th class="th-label w-48">Flows Path</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
+      </tr>
       <tr>
-        <th class="th-label w-48">Node-RED URL</th>
+        <th class="th-label">Node-RED URL</th>
         <td class="px-4 py-2"><code>{{ config.nodered_url }}</code></td>
       </tr>
       <tr>
@@ -74,7 +91,7 @@
       </tr>
       <tr>
         <th class="th-label">Poll Interval</th>
-        <td class="px-4 py-2">{{ config.poll_interval_seconds }}s</td>
+        <td class="px-4 py-2">{{ config.poll_interval_seconds }}s <span class="ml-1 text-xs text-gray-400">{{ config.poll_interval_seconds|default_label:defaults.poll_interval_seconds }}</span></td>
       </tr>
       {% endif %}
     </tbody>
@@ -87,25 +104,26 @@
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
       <tr>
         <th class="th-label w-48">Scheduled Backups</th>
-        <td class="px-4 py-2">{% if config.schedule_enabled %}Enabled{% else %}Disabled{% endif %}</td>
+        <td class="px-4 py-2">{% if config.schedule_enabled %}Enabled{% else %}Disabled{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.schedule_enabled|default_label:defaults.schedule_enabled }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Frequency</th>
-        <td class="px-4 py-2">{{ config.get_backup_frequency_display }}</td>
+        <td class="px-4 py-2">{{ config.get_backup_frequency_display }} <span class="ml-1 text-xs text-gray-400">{{ config.backup_frequency|default_label:defaults.backup_frequency }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Time</th>
-        <td class="px-4 py-2">{{ config.backup_time|time:"H:i" }}</td>
+        <td class="px-4 py-2">{{ config.backup_time|time:"H:i" }} <span class="ml-1 text-xs text-gray-400">{{ config.backup_time|default_label:defaults.backup_time }}</span></td>
       </tr>
-      {% if config.backup_frequency == "weekly" %}
       <tr>
         <th class="th-label">Day</th>
-        <td class="px-4 py-2">{{ config.backup_day|add:0 }}</td>
+        <td class="px-4 py-2">
+          {{ config.backup_day|day_name }} <span class="ml-1 text-xs text-gray-400">{{ config.backup_day|default_label:defaults.backup_day }}</span>
+          {% if config.backup_frequency != "weekly" %}<span class="ml-1 text-xs text-gray-400 italic">(used when frequency is weekly)</span>{% endif %}
+        </td>
       </tr>
-      {% endif %}
       <tr>
         <th class="th-label">Always Backup</th>
-        <td class="px-4 py-2">{% if config.always_backup %}Yes{% else %}No{% endif %}</td>
+        <td class="px-4 py-2">{% if config.always_backup %}Yes{% else %}No{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.always_backup|default_label:defaults.always_backup }}</span></td>
       </tr>
     </tbody>
   </table>
@@ -117,35 +135,49 @@
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
       <tr>
         <th class="th-label w-48">{% if config.source_type == "local" %}File Watching{% else %}API Polling{% endif %}</th>
-        <td class="px-4 py-2">{% if config.watch_enabled %}Enabled{% else %}Disabled{% endif %}</td>
+        <td class="px-4 py-2">{% if config.watch_enabled %}Enabled{% else %}Disabled{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.watch_enabled|default_label:defaults.watch_enabled }}</span></td>
       </tr>
       {% if config.source_type == "local" %}
       <tr>
         <th class="th-label">Debounce</th>
-        <td class="px-4 py-2">{{ config.watch_debounce_seconds }}s</td>
+        <td class="px-4 py-2">{{ config.watch_debounce_seconds }}s <span class="ml-1 text-xs text-gray-400">{{ config.watch_debounce_seconds|default_label:defaults.watch_debounce_seconds }}</span></td>
+      </tr>
+      {% else %}
+      <tr class="opacity-50">
+        <th class="th-label">Debounce</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
       </tr>
       {% endif %}
     </tbody>
   </table>
 {% include "backup/components/_card_section_end.html" %}
 
-{% if config.source_type == "local" %}
 <!-- Backup Contents -->
 {% include "backup/components/_card_section_start.html" with title="Backup Contents" body_class="p-0" extra_class="mb-3" %}
   <table class="w-full text-sm">
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      {% if config.source_type == "local" %}
       <tr>
         <th class="th-label w-48">Include Credentials</th>
-        <td class="px-4 py-2">{% if config.backup_credentials %}Yes{% else %}No{% endif %}</td>
+        <td class="px-4 py-2">{% if config.backup_credentials %}Yes{% else %}No{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.backup_credentials|default_label:defaults.backup_credentials }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Include Settings</th>
-        <td class="px-4 py-2">{% if config.backup_settings %}Yes{% else %}No{% endif %}</td>
+        <td class="px-4 py-2">{% if config.backup_settings %}Yes{% else %}No{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.backup_settings|default_label:defaults.backup_settings }}</span></td>
       </tr>
+      {% else %}
+      <tr class="opacity-50">
+        <th class="th-label w-48">Include Credentials</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
+      </tr>
+      <tr class="opacity-50">
+        <th class="th-label">Include Settings</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 {% include "backup/components/_card_section_end.html" %}
-{% endif %}
 
 <!-- Retention -->
 {% include "backup/components/_card_section_start.html" with title="Retention" body_class="p-0" extra_class="mb-3" %}
@@ -153,33 +185,42 @@
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
       <tr>
         <th class="th-label w-48">Max Backups</th>
-        <td class="px-4 py-2">{{ config.max_backups }}</td>
+        <td class="px-4 py-2">{{ config.max_backups }} <span class="ml-1 text-xs text-gray-400">{{ config.max_backups|default_label:defaults.max_backups }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Max Age</th>
-        <td class="px-4 py-2">{{ config.max_age_days }} days</td>
+        <td class="px-4 py-2">{{ config.max_age_days }} days <span class="ml-1 text-xs text-gray-400">{{ config.max_age_days|default_label:defaults.max_age_days }}</span></td>
       </tr>
     </tbody>
   </table>
 {% include "backup/components/_card_section_end.html" %}
 
-{% if config.source_type == "local" %}
 <!-- Restore -->
 {% include "backup/components/_card_section_start.html" with title="Restore" body_class="p-0" extra_class="mb-3" %}
   <table class="w-full text-sm">
     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+      {% if config.source_type == "local" %}
       <tr>
         <th class="th-label w-48">Restart on Restore</th>
-        <td class="px-4 py-2">{% if config.restart_on_restore %}Yes{% else %}No{% endif %}</td>
+        <td class="px-4 py-2">{% if config.restart_on_restore %}Yes{% else %}No{% endif %} <span class="ml-1 text-xs text-gray-400">{{ config.restart_on_restore|default_label:defaults.restart_on_restore }}</span></td>
       </tr>
       <tr>
         <th class="th-label">Container Name</th>
-        <td class="px-4 py-2"><code>{{ config.nodered_container_name }}</code></td>
+        <td class="px-4 py-2"><code>{{ config.nodered_container_name }}</code> <span class="ml-1 text-xs text-gray-400">{{ config.nodered_container_name|default_label:defaults.nodered_container_name }}</span></td>
       </tr>
+      {% else %}
+      <tr class="opacity-50">
+        <th class="th-label w-48">Restart on Restore</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
+      </tr>
+      <tr class="opacity-50">
+        <th class="th-label">Container Name</th>
+        <td class="px-4 py-2"><span class="text-gray-400 italic">N/A — local instances only</span></td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 {% include "backup/components/_card_section_end.html" %}
-{% endif %}
 
 <!-- Danger Zone -->
 {% include "backup/components/_card_section_start.html" with title="Danger Zone" extra_class="mb-3" %}

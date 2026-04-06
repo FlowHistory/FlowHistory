@@ -77,6 +77,17 @@ class NodeRedConfig(models.Model):
         """Per-instance backup storage directory."""
         return Path(settings.BACKUP_DIR) / self.slug
 
+    @classmethod
+    def get_field_defaults(cls):
+        """Return {field_name: default_value} for fields with explicit defaults."""
+        from django.db.models.fields import NOT_PROVIDED
+
+        defaults = {}
+        for field in cls._meta.get_fields():
+            if hasattr(field, "default") and field.default is not NOT_PROVIDED:
+                defaults[field.name] = field.default() if callable(field.default) else field.default
+        return defaults
+
     def get_nodered_credentials(self):
         """Read credentials from environment variables using configured prefix."""
         if not self.env_prefix:
