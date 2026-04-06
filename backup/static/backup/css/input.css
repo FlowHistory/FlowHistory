@@ -39,7 +39,7 @@
     @apply relative inline-flex cursor-help ml-1;
   }
   .tooltip-content {
-    @apply invisible absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-gray-700;
+    @apply invisible absolute bottom-full left-0 z-50 mb-2 w-56 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-gray-700;
   }
   .tooltip-trigger:hover .tooltip-content,
   .tooltip-trigger:focus-within .tooltip-content {
