@@ -20,7 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         orphaned = [
             r
-            for r in BackupRecord.objects.filter(status="success")
+            for r in BackupRecord.objects.select_related("config").filter(status="success")
             if not Path(r.file_path).is_file()
         ]
         if not orphaned:
@@ -30,6 +30,7 @@ class Command(BaseCommand):
         for record in orphaned:
             self.stderr.write(
                 f"Orphaned record: {record.filename} "
+                f"[{record.config.name}] "
                 f"(missing {record.file_path})"
             )
 

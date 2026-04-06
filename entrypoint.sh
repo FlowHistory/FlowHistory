@@ -4,6 +4,12 @@ set -e
 # Run migrations on startup
 python manage.py migrate --noinput
 
+# Discover instances from FLOWHISTORY_* env vars
+python manage.py discover_instances
+
+# Migrate backup archives into per-instance subdirectories
+python manage.py migrate_backup_storage
+
 # Remove backup records whose archive files are missing
 python manage.py checkintegrity
 

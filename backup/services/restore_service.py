@@ -8,7 +8,6 @@ import shutil
 import tarfile
 from pathlib import Path
 
-from django.conf import settings
 from django.utils import timezone
 
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
@@ -17,10 +16,11 @@ from backup.services.docker_service import restart_container
 
 logger = logging.getLogger(__name__)
 
-# Ownership for restored files (Node-RED container user)
-NODERED_UID = 1000
-NODERED_GID = 1000
-FILE_MODE = 0o644
+# Ownership for restored files (Node-RED container user, configurable via env)
+NODERED_UID = int(os.environ.get("NODERED_UID", "1000"))
+NODERED_GID = int(os.environ.get("NODERED_GID", "1000"))
+DEFAULT_FILE_MODE = 0o644
+CREDENTIAL_FILE_MODE = 0o600  # flows_cred.json — owner only
 
 
 def restore_backup(backup_id, restart=None):
@@ -52,7 +52,10 @@ def restore_backup(backup_id, restart=None):
     # Create pre-restore safety backup
     safety_backup = _create_safety_backup(config)
 
-    # Extract and copy files
+    if config.source_type == "remote":
+        return _restore_remote(record, config, safety_backup)
+
+    # Local restore: extract and copy files
     try:
         files_restored = _extract_and_restore(record, config)
     except Exception as e:
@@ -129,7 +132,12 @@ def _verify_checksum(record):
 def _create_safety_backup(config):
     """Create a pre-restore safety backup. Returns BackupRecord or None."""
     try:
-        result = create_backup(config=config, trigger="pre_restore")
+        flows_data = None
+        if config.source_type == "remote":
+            from backup.services.remote_service import fetch_remote_flows
+            flows_data, _ = fetch_remote_flows(config)
+
+        result = create_backup(config=config, trigger="pre_restore", flows_data=flows_data)
         if result and result.status == "success":
             logger.info("Pre-restore safety backup created: %s", result.filename)
             return result
@@ -140,22 +148,56 @@ def _create_safety_backup(config):
         return None
 
 
+def _restore_remote(record, config, safety_backup):
+    """Deploy flows from a backup archive to a remote Node-RED instance."""
+    from backup.services.remote_service import deploy_remote_flows
+
+    try:
+        with tarfile.open(record.file_path, "r:gz") as tar:
+            member = tar.getmember("flows.json")
+            f = tar.extractfile(member)
+            if f is None:
+                return _fail(config, record, safety_backup, "Could not read flows.json from archive")
+            flows_json = f.read()
+    except (tarfile.TarError, OSError, KeyError) as e:
+        return _fail(config, record, safety_backup, f"Failed to read archive: {e}")
+
+    try:
+        deploy_remote_flows(config, flows_json)
+    except Exception as e:
+        return _fail(config, record, safety_backup, f"Failed to deploy flows to remote instance: {e}")
+
+    restore_record = RestoreRecord.objects.create(
+        config=config,
+        backup=record,
+        safety_backup=safety_backup,
+        status="success",
+        files_restored=["flows.json"],
+    )
+
+    logger.info("Remote restore deployed to %s from %s", config.nodered_url, record.filename)
+    return restore_record
+
+
 def _extract_and_restore(record, config):
     """Extract archive to temp dir, then copy files to Node-RED data dir.
 
     Returns list of restored file names.
     """
     dest_dir = Path(config.flows_path).parent
-    tmp_dir = Path(settings.BACKUP_DIR) / "_restore_tmp"
+    tmp_dir = config.backup_dir / "_restore_tmp"
 
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
         # Extract archive to temp dir
         with tarfile.open(record.file_path, "r:gz") as tar:
-            # Security: only extract known safe file names
+            # Security: only extract known safe file names, skip symlinks
             safe_names = {"flows.json", "flows_cred.json", "settings.js"}
-            members = [m for m in tar.getmembers() if m.name in safe_names]
+            members = [
+                m for m in tar.getmembers()
+                if m.name in safe_names and not m.issym() and not m.islnk()
+            ]
             tar.extractall(path=tmp_dir, members=members)
 
         # Copy files to destination and set ownership
@@ -169,7 +211,8 @@ def _extract_and_restore(record, config):
             except OSError:
                 logger.warning("Could not chown %s (not running as root?)", dst)
             try:
-                os.chmod(str(dst), FILE_MODE)
+                mode = CREDENTIAL_FILE_MODE if member.name == "flows_cred.json" else DEFAULT_FILE_MODE
+                os.chmod(str(dst), mode)
             except OSError:
                 logger.warning("Could not chmod %s", dst)
             files_restored.append(member.name)

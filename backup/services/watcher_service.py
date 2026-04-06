@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 class _FlowsHandler(FileSystemEventHandler):
     """Watchdog handler that debounces flows.json modification events."""
 
-    def __init__(self, flows_path):
+    def __init__(self, flows_path, config_id):
         super().__init__()
         self._flows_path = Path(flows_path)
         self._flows_filename = self._flows_path.name
+        self._config_id = config_id
         self._timer = None
         self._lock = threading.Lock()
         self._last_known_checksum = self._compute_checksum()
@@ -69,7 +70,7 @@ class _FlowsHandler(FileSystemEventHandler):
         from backup.models import NodeRedConfig
 
         try:
-            config = NodeRedConfig.objects.get(pk=1)
+            config = NodeRedConfig.objects.get(pk=self._config_id)
         except NodeRedConfig.DoesNotExist:
             logger.debug("Ignoring event — no NodeRedConfig found")
             return
@@ -99,7 +100,7 @@ class _FlowsHandler(FileSystemEventHandler):
         from backup.services.backup_service import create_backup
 
         try:
-            config = NodeRedConfig.objects.get(pk=1)
+            config = NodeRedConfig.objects.get(pk=self._config_id)
         except NodeRedConfig.DoesNotExist:
             logger.warning("No NodeRedConfig found, skipping file-change backup")
             return
@@ -147,14 +148,14 @@ class _FlowsHandler(FileSystemEventHandler):
             logger.debug("Poll: no change (checksum %s)", current[:12])
 
 
-def _run_polling_loop(handler, stop_event):
+def _run_polling_loop(handler, stop_event, config_id):
     """Background thread that periodically polls flows.json for changes."""
     from backup.models import NodeRedConfig
 
     logger.info("Polling thread started")
     while not stop_event.is_set():
         try:
-            config = NodeRedConfig.objects.get(pk=1)
+            config = NodeRedConfig.objects.get(pk=config_id)
             interval = config.watch_debounce_seconds
         except NodeRedConfig.DoesNotExist:
             interval = 30
@@ -171,56 +172,76 @@ def _run_polling_loop(handler, stop_event):
     logger.info("Polling thread stopped")
 
 
-def start_watcher():
-    """Start the file watcher. Blocks until SIGINT/SIGTERM.
+def start_all_watchers():
+    """Start file watchers for all enabled local instances. Blocks until SIGINT/SIGTERM.
 
-    Reads flows_path from NodeRedConfig to determine which directory and
-    file to watch. Uses both inotify (watchdog) and checksum polling for
-    reliable change detection on Docker bind mounts.
+    Creates one Observer with a handler per local instance, plus a polling
+    fallback thread per instance for reliable Docker bind mount detection.
     """
     from backup.models import NodeRedConfig
 
-    config, _ = NodeRedConfig.objects.get_or_create(pk=1)
-    flows_path = Path(config.flows_path)
-    watch_dir = str(flows_path.parent)
+    configs = list(
+        NodeRedConfig.objects.filter(
+            is_enabled=True, source_type="local", watch_enabled=True,
+        )
+    )
+    if not configs:
+        logger.info("No enabled local instances found, watcher idle")
+        # Block until signal so the process doesn't exit
+        stop_event = threading.Event()
+        signal.signal(signal.SIGTERM, lambda s, f: stop_event.set())
+        signal.signal(signal.SIGINT, lambda s, f: stop_event.set())
+        stop_event.wait()
+        return
 
-    handler = _FlowsHandler(flows_path)
     observer = Observer()
-    observer.schedule(handler, watch_dir, recursive=False)
-
-    # Graceful shutdown on signals
     stop_event = threading.Event()
+    poll_threads = []
+
+    for config in configs:
+        flows_path = Path(config.flows_path)
+        watch_dir = str(flows_path.parent)
+
+        handler = _FlowsHandler(flows_path, config.pk)
+        observer.schedule(handler, watch_dir, recursive=False)
+
+        poll_thread = threading.Thread(
+            target=_run_polling_loop,
+            args=(handler, stop_event, config.pk),
+            daemon=True,
+        )
+        poll_threads.append(poll_thread)
+
+        logger.info(
+            "File watcher started for %s on %s (watching %s)",
+            config.name, watch_dir, flows_path.name,
+        )
+        logger.info(
+            "Watcher config [%s]: watch_enabled=%s, debounce=%ds, "
+            "flows_exists=%s, initial_checksum=%s",
+            config.name,
+            config.watch_enabled,
+            config.watch_debounce_seconds,
+            flows_path.is_file(),
+            handler._last_known_checksum[:12] if handler._last_known_checksum else "None",
+        )
 
     def _shutdown(signum, frame):
-        logger.info("Received signal %s, stopping watcher", signum)
+        logger.info("Received signal %s, stopping watchers", signum)
         stop_event.set()
 
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
     observer.start()
-
-    # Start polling fallback thread
-    poll_thread = threading.Thread(
-        target=_run_polling_loop, args=(handler, stop_event), daemon=True
-    )
-    poll_thread.start()
-
-    # Startup logging
-    logger.info("File watcher started on %s (watching %s)", watch_dir, flows_path.name)
-    logger.info(
-        "Watcher config: watch_enabled=%s, debounce=%ds, flows_exists=%s, "
-        "initial_checksum=%s",
-        config.watch_enabled,
-        config.watch_debounce_seconds,
-        flows_path.is_file(),
-        handler._last_known_checksum[:12] if handler._last_known_checksum else "None",
-    )
+    for t in poll_threads:
+        t.start()
 
     try:
         stop_event.wait()
     finally:
         observer.stop()
-        observer.join()
-        poll_thread.join(timeout=5)
-        logger.info("File watcher stopped")
+        observer.join(timeout=10)
+        for t in poll_threads:
+            t.join(timeout=5)
+        logger.info("All file watchers stopped")

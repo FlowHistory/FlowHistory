@@ -22,11 +22,59 @@
   }
 })();
 
+// Instance URL bases from meta tags
+function getApiBase() {
+  var meta = document.querySelector('meta[name="instance-api-base"]');
+  return meta ? meta.content : '/api/';
+}
+
+function getInstanceBase() {
+  var meta = document.querySelector('meta[name="instance-base"]');
+  return meta ? meta.content : '/';
+}
+
+// In-page alert banner (replaces browser alert())
+function showBanner(message, type) {
+  type = type || 'error';
+  var colors = {
+    success: 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200',
+    error:   'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200',
+    warning: 'border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
+    info:    'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
+  };
+  var dismiss = {
+    success: 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200',
+    error:   'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200',
+    warning: 'text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200',
+    info:    'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200',
+  };
+
+  var div = document.createElement('div');
+  div.className = 'mb-4 flex items-center justify-between rounded-lg border px-4 py-3 text-sm ' + (colors[type] || colors.error);
+  div.setAttribute('role', 'alert');
+
+  var span = document.createElement('span');
+  span.textContent = message;
+
+  var btn = document.createElement('button');
+  btn.className = 'ml-4 ' + (dismiss[type] || dismiss.error);
+  btn.textContent = '\u00D7';
+  btn.onclick = function () { div.remove(); };
+
+  div.appendChild(span);
+  div.appendChild(btn);
+
+  var main = document.querySelector('main');
+  if (main) {
+    main.insertBefore(div, main.firstChild);
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
 // Dropdown toggle
 function toggleDropdown(event) {
   event.stopPropagation();
   var menu = event.currentTarget.nextElementSibling;
-  // Close any other open dropdowns
   document.querySelectorAll('.dropdown-menu').forEach(function (el) {
     if (el !== menu) el.classList.add('hidden');
   });
@@ -56,12 +104,15 @@ function createBackup() {
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.status === 'error') {
-      alert(data.message || 'Backup failed');
+      showBanner(data.message || 'Backup failed');
+      btn.disabled = false;
+      btn.textContent = 'Create Backup';
+    } else {
+      location.reload();
     }
-    location.reload();
   })
   .catch(function () {
-    alert('Request failed');
+    showBanner('Request failed');
     btn.disabled = false;
     btn.textContent = 'Create Backup';
   });
@@ -70,8 +121,8 @@ function createBackup() {
 // Set backup label
 function setLabel(backupId, currentLabel) {
   var label = prompt('Enter label for this backup:', currentLabel || '');
-  if (label === null) return; // cancelled
-  fetch('/api/backup/' + backupId + '/label/', {
+  if (label === null) return;
+  fetch(getApiBase() + 'backup/' + backupId + '/label/', {
     method: 'POST',
     headers: {
       'X-CSRFToken': getCsrfToken(),
@@ -84,17 +135,16 @@ function setLabel(backupId, currentLabel) {
     if (data.status === 'success') {
       location.reload();
     } else {
-      alert(data.message || 'Failed to set label');
+      showBanner(data.message || 'Failed to set label');
     }
   })
   .catch(function () {
-    alert('Request failed');
+    showBanner('Request failed');
   });
 }
 
 // Set backup notes (modal with textarea)
 function setNotes(backupId, currentNotes) {
-  // Create modal overlay
   var overlay = document.createElement('div');
   overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
   overlay.onclick = function (e) { if (e.target === overlay) close(); };
@@ -126,7 +176,7 @@ function setNotes(backupId, currentNotes) {
   saveBtn.onclick = function () {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
-    fetch('/api/backup/' + backupId + '/notes/', {
+    fetch(getApiBase() + 'backup/' + backupId + '/notes/', {
       method: 'POST',
       headers: {
         'X-CSRFToken': getCsrfToken(),
@@ -139,15 +189,13 @@ function setNotes(backupId, currentNotes) {
       if (data.status === 'success') {
         location.reload();
       } else {
-        alert(data.message || 'Failed to save notes');
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
+        close();
+        showBanner(data.message || 'Failed to save notes');
       }
     })
     .catch(function () {
-      alert('Request failed');
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save';
+      close();
+      showBanner('Request failed');
     });
   };
 
@@ -167,7 +215,7 @@ function setNotes(backupId, currentNotes) {
 
 // Toggle pin
 function togglePin(backupId) {
-  fetch('/api/backup/' + backupId + '/pin/', {
+  fetch(getApiBase() + 'backup/' + backupId + '/pin/', {
     method: 'POST',
     headers: { 'X-CSRFToken': getCsrfToken() },
   })
@@ -176,11 +224,11 @@ function togglePin(backupId) {
     if (data.status === 'success') {
       location.reload();
     } else {
-      alert(data.message || 'Failed to toggle pin');
+      showBanner(data.message || 'Failed to toggle pin');
     }
   })
   .catch(function () {
-    alert('Request failed');
+    showBanner('Request failed');
   });
 }
 
@@ -191,7 +239,7 @@ function deleteBackup(backupId, filename) {
   }
   var form = document.createElement('form');
   form.method = 'POST';
-  form.action = '/backup/' + backupId + '/delete/';
+  form.action = getInstanceBase() + 'backup/' + backupId + '/delete/';
   var csrf = document.createElement('input');
   csrf.type = 'hidden';
   csrf.name = 'csrfmiddlewaretoken';
@@ -206,7 +254,7 @@ function compareDiff(backupId) {
   var select = document.getElementById('compare-select');
   var compareId = select.value;
   if (compareId) {
-    window.location.href = '/diff/' + backupId + '/' + compareId + '/';
+    window.location.href = getInstanceBase() + 'diff/' + backupId + '/' + compareId + '/';
   }
 }
 
@@ -229,13 +277,11 @@ function updateBulkBar() {
   } else {
     bar.classList.add('hidden');
   }
-  // Sync select-all checkbox
   var all = document.querySelectorAll('.backup-checkbox');
   var selectAll = document.getElementById('select-all');
   if (selectAll && all.length) {
     selectAll.checked = count === all.length;
   }
-  // Show Compare button only when exactly 2 selected
   var compareBtn = document.getElementById('bulk-compare');
   if (compareBtn) {
     if (count === 2) {
@@ -257,7 +303,7 @@ function getSelectedIds() {
 function bulkAction(action) {
   var ids = getSelectedIds();
   if (!ids.length) return;
-  return fetch('/api/backup/bulk/', {
+  return fetch(getApiBase() + 'bulk/', {
     method: 'POST',
     headers: {
       'X-CSRFToken': getCsrfToken(),
@@ -268,12 +314,12 @@ function bulkAction(action) {
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.errors && data.errors.length) {
-      alert(data.affected + ' succeeded, ' + data.errors.length + ' failed:\n' + data.errors.join('\n'));
+      showBanner(data.affected + ' succeeded, ' + data.errors.length + ' failed: ' + data.errors.join(', '), 'warning');
     }
     location.reload();
   })
   .catch(function () {
-    alert('Request failed');
+    showBanner('Request failed');
   });
 }
 
@@ -290,17 +336,15 @@ function bulkDelete() {
 function bulkCompare() {
   var ids = getSelectedIds();
   if (ids.length !== 2) return;
-  // Newer backup is the main one, older is the compare target
-  // Use the larger ID as backup_id (newer), smaller as compare_id
   var a = Math.min(ids[0], ids[1]);
   var b = Math.max(ids[0], ids[1]);
-  window.location.href = '/diff/' + b + '/' + a + '/';
+  window.location.href = getInstanceBase() + 'diff/' + b + '/' + a + '/';
 }
 
 function bulkDownload() {
   var ids = getSelectedIds();
   ids.forEach(function (id) {
-    window.open('/backup/' + id + '/download/', '_blank');
+    window.open(getInstanceBase() + 'backup/' + id + '/download/', '_blank');
   });
 }
 
@@ -309,20 +353,20 @@ function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {
     return;
   }
-  fetch('/api/restore/' + id + '/', {
+  fetch(getApiBase() + 'restore/' + id + '/', {
     method: 'POST',
     headers: { 'X-CSRFToken': getCsrfToken() },
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.status === 'success') {
-      alert('Restore complete. Files restored: ' + data.restore.files_restored.join(', '));
+      showBanner('Restore complete. Files restored: ' + data.restore.files_restored.join(', '), 'success');
+      setTimeout(function () { location.reload(); }, 2000);
     } else {
-      alert('Restore failed: ' + (data.message || 'Unknown error'));
+      showBanner('Restore failed: ' + (data.message || 'Unknown error'));
     }
-    location.reload();
   })
   .catch(function () {
-    alert('Request failed');
+    showBanner('Request failed');
   });
 }

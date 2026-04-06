@@ -1,8 +1,44 @@
+import os
+from pathlib import Path
+
+from django.conf import settings
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class NodeRedConfig(models.Model):
+    SOURCE_TYPE_CHOICES = [
+        ("local", "Local"),
+        ("remote", "Remote"),
+    ]
+
+    INSTANCE_COLORS = [
+        "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899",
+    ]
+
+    RESERVED_SLUGS = {"add", "api"}
+
+    # Instance identity
+    name = models.CharField(max_length=100, default="Node-RED")
+    slug = models.SlugField(max_length=100, unique=True)
+    color = models.CharField(
+        max_length=7, blank=True, default="",
+        validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Enter a valid hex color.")],
+    )
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Source type
+    source_type = models.CharField(
+        max_length=10, choices=SOURCE_TYPE_CHOICES, default="local",
+    )
+    nodered_url = models.URLField(blank=True, default="")
+    env_prefix = models.CharField(max_length=50, blank=True, default="")
+    poll_interval_seconds = models.PositiveIntegerField(default=60)
+
+    # Existing per-instance config
     flows_path = models.CharField(max_length=500, default="/nodered-data/flows.json")
     backup_frequency = models.CharField(
         max_length=10,
@@ -13,9 +49,9 @@ class NodeRedConfig(models.Model):
     backup_day = models.SmallIntegerField(
         default=0, help_text="Day of week for weekly backups (0=Monday)"
     )
-    max_backups = models.PositiveIntegerField(default=20)
-    max_age_days = models.PositiveIntegerField(default=30)
-    is_active = models.BooleanField(default=True)
+    max_backups = models.PositiveIntegerField(default=20, validators=[MinValueValidator(1)])
+    max_age_days = models.PositiveIntegerField(default=30, validators=[MinValueValidator(1)])
+    schedule_enabled = models.BooleanField(default=True)
     always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
     watch_debounce_seconds = models.PositiveIntegerField(default=3)
@@ -30,7 +66,60 @@ class NodeRedConfig(models.Model):
         verbose_name = "Node-RED Configuration"
 
     def __str__(self):
-        return f"NodeRedConfig #{self.pk}"
+        return self.name
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse("instance_dashboard", kwargs={"slug": self.slug})
+
+    @property
+    def backup_dir(self):
+        """Per-instance backup storage directory."""
+        return Path(settings.BACKUP_DIR) / self.slug
+
+    @classmethod
+    def get_field_defaults(cls):
+        """Return {field_name: default_value} for fields with explicit defaults."""
+        from django.db.models.fields import NOT_PROVIDED
+
+        defaults = {}
+        for field in cls._meta.get_fields():
+            if hasattr(field, "default") and field.default is not NOT_PROVIDED:
+                defaults[field.name] = field.default() if callable(field.default) else field.default
+        return defaults
+
+    def get_nodered_credentials(self):
+        """Read credentials from environment variables using configured prefix."""
+        if not self.env_prefix:
+            return None, None
+        prefix = self.env_prefix.upper()
+        username = os.environ.get(f"FLOWHISTORY_{prefix}_USER", "")
+        password = os.environ.get(f"FLOWHISTORY_{prefix}_PASS", "")
+        return username, password
+
+    def save(self, *args, **kwargs):
+        """Auto-generate slug from name with uniqueness dedup."""
+        if not self.slug:
+            base = slugify(self.name) or "instance"
+            if base in self.RESERVED_SLUGS:
+                base = f"{base}-instance"
+            slug, n = base, 1
+            while NodeRedConfig.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f"{base}-{n}"
+            self.slug = slug
+        if not self.color:
+            used = set(
+                NodeRedConfig.objects.exclude(pk=self.pk).values_list("color", flat=True)
+            )
+            for c in self.INSTANCE_COLORS:
+                if c not in used:
+                    self.color = c
+                    break
+            else:
+                # All colors used — fall back to modulo
+                self.color = self.INSTANCE_COLORS[len(used) % len(self.INSTANCE_COLORS)]
+        super().save(*args, **kwargs)
 
 
 class BackupRecord(models.Model):

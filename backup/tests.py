@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import shutil
 import tarfile
 import tempfile
@@ -522,7 +523,7 @@ class ApiCreateBackupTest(TempBackupDirMixin, TestCase):
         )
 
     def test_post_creates_backup(self):
-        resp = self.client.post("/api/backup/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
@@ -530,13 +531,13 @@ class ApiCreateBackupTest(TempBackupDirMixin, TestCase):
         self.assertIn("filename", data["backup"])
 
     def test_get_not_allowed(self):
-        resp = self.client.get("/api/backup/")
+        resp = self.client.get(f"/api/instance/{self.config.slug}/backup/")
         self.assertEqual(resp.status_code, 405)
 
     def test_missing_flows_returns_500(self):
         self.config.flows_path = "/nonexistent/flows.json"
         self.config.save()
-        resp = self.client.post("/api/backup/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/")
         self.assertEqual(resp.status_code, 500)
         self.assertEqual(resp.json()["status"], "error")
 
@@ -714,7 +715,7 @@ class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
         self.backup_record = create_backup(config=self.config, trigger="manual")
 
     def test_post_restores_backup(self):
-        resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
@@ -722,15 +723,15 @@ class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
         self.assertIn("files_restored", data["restore"])
 
     def test_get_not_allowed(self):
-        resp = self.client.get(f"/api/restore/{self.backup_record.pk}/")
+        resp = self.client.get(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
         self.assertEqual(resp.status_code, 405)
 
     def test_nonexistent_backup_returns_404(self):
-        resp = self.client.post("/api/restore/99999/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/restore/99999/")
         self.assertEqual(resp.status_code, 404)
 
     def test_response_includes_safety_backup(self):
-        resp = self.client.post(f"/api/restore/{self.backup_record.pk}/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
         data = resp.json()
         self.assertIn("safety_backup_id", data["restore"])
 
@@ -907,7 +908,7 @@ class WatcherHandlerTest(TempBackupDirMixin, TestCase):
     def test_ignores_directory_events(self):
         from backup.services.watcher_service import _FlowsHandler
 
-        handler = _FlowsHandler("flows.json")
+        handler = _FlowsHandler("flows.json", self.config.pk)
         event = MagicMock()
         event.is_directory = True
         event.src_path = str(self.flows_file)
@@ -917,7 +918,7 @@ class WatcherHandlerTest(TempBackupDirMixin, TestCase):
     def test_ignores_non_flows_files(self):
         from backup.services.watcher_service import _FlowsHandler
 
-        handler = _FlowsHandler("flows.json")
+        handler = _FlowsHandler("flows.json", self.config.pk)
         event = MagicMock()
         event.is_directory = False
         event.src_path = str(self.backup_dir / "settings.js")
@@ -927,7 +928,7 @@ class WatcherHandlerTest(TempBackupDirMixin, TestCase):
     def test_starts_timer_on_flows_modified(self):
         from backup.services.watcher_service import _FlowsHandler
 
-        handler = _FlowsHandler("flows.json")
+        handler = _FlowsHandler("flows.json", self.config.pk)
         event = MagicMock()
         event.is_directory = False
         event.src_path = str(self.flows_file)
@@ -940,7 +941,7 @@ class WatcherHandlerTest(TempBackupDirMixin, TestCase):
 
         self.config.watch_enabled = False
         self.config.save()
-        handler = _FlowsHandler("flows.json")
+        handler = _FlowsHandler("flows.json", self.config.pk)
         event = MagicMock()
         event.is_directory = False
         event.src_path = str(self.flows_file)
@@ -952,7 +953,7 @@ class WatcherHandlerTest(TempBackupDirMixin, TestCase):
         from backup.services.watcher_service import _FlowsHandler
 
         mock_backup.return_value = MagicMock(status="success", filename="test.tar.gz")
-        handler = _FlowsHandler("flows.json")
+        handler = _FlowsHandler("flows.json", self.config.pk)
         handler._on_debounce_complete()
         mock_backup.assert_called_once()
         call_kwargs = mock_backup.call_args[1]
@@ -1012,7 +1013,7 @@ class ApiSetLabelTest(TempBackupDirMixin, TestCase):
 
     def test_set_label(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/label/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/label/",
             data=json.dumps({"label": "Before refactor"}),
             content_type="application/json",
         )
@@ -1027,7 +1028,7 @@ class ApiSetLabelTest(TempBackupDirMixin, TestCase):
         self.backup_record.label = "old label"
         self.backup_record.save()
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/label/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/label/",
             data=json.dumps({"label": ""}),
             content_type="application/json",
         )
@@ -1037,7 +1038,7 @@ class ApiSetLabelTest(TempBackupDirMixin, TestCase):
 
     def test_missing_label_field(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/label/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/label/",
             data=json.dumps({"note": "wrong field"}),
             content_type="application/json",
         )
@@ -1045,7 +1046,7 @@ class ApiSetLabelTest(TempBackupDirMixin, TestCase):
 
     def test_label_too_long(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/label/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/label/",
             data=json.dumps({"label": "x" * 201}),
             content_type="application/json",
         )
@@ -1053,7 +1054,7 @@ class ApiSetLabelTest(TempBackupDirMixin, TestCase):
 
     def test_not_found(self):
         resp = self.client.post(
-            "/api/backup/99999/label/",
+            f"/api/instance/{self.config.slug}/backup/99999/label/",
             data=json.dumps({"label": "test"}),
             content_type="application/json",
         )
@@ -1079,7 +1080,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
 
     def test_set_notes(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/notes/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/",
             data=json.dumps({"notes": "Rewired MQTT pipeline to batch writes."}),
             content_type="application/json",
         )
@@ -1094,7 +1095,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
         self.backup_record.notes = "old notes"
         self.backup_record.save()
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/notes/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/",
             data=json.dumps({"notes": ""}),
             content_type="application/json",
         )
@@ -1104,7 +1105,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
 
     def test_missing_notes_field(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/notes/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/",
             data=json.dumps({"label": "wrong field"}),
             content_type="application/json",
         )
@@ -1112,7 +1113,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
 
     def test_notes_not_a_string(self):
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/notes/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/",
             data=json.dumps({"notes": 123}),
             content_type="application/json",
         )
@@ -1120,7 +1121,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
 
     def test_not_found(self):
         resp = self.client.post(
-            "/api/backup/99999/notes/",
+            f"/api/instance/{self.config.slug}/backup/99999/notes/",
             data=json.dumps({"notes": "test"}),
             content_type="application/json",
         )
@@ -1129,7 +1130,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
     def test_multiline_notes(self):
         multiline = "Line one\nLine two\nLine three"
         resp = self.client.post(
-            f"/api/backup/{self.backup_record.pk}/notes/",
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/",
             data=json.dumps({"notes": multiline}),
             content_type="application/json",
         )
@@ -1138,7 +1139,7 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
         self.assertEqual(self.backup_record.notes, multiline)
 
     def test_get_method_not_allowed(self):
-        resp = self.client.get(f"/api/backup/{self.backup_record.pk}/notes/")
+        resp = self.client.get(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/")
         self.assertEqual(resp.status_code, 405)
 
 
@@ -1159,7 +1160,7 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
         self.backup_record = create_backup(config=self.config, trigger="manual")
 
     def test_pin_backup(self):
-        resp = self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
@@ -1170,7 +1171,7 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
     def test_unpin_backup(self):
         self.backup_record.is_pinned = True
         self.backup_record.save()
-        resp = self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertFalse(data["backup"]["is_pinned"])
@@ -1178,17 +1179,17 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
         self.assertFalse(self.backup_record.is_pinned)
 
     def test_toggle_twice(self):
-        self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
-        self.client.post(f"/api/backup/{self.backup_record.pk}/pin/")
+        self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
+        self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
         self.backup_record.refresh_from_db()
         self.assertFalse(self.backup_record.is_pinned)
 
     def test_not_found(self):
-        resp = self.client.post("/api/backup/99999/pin/")
+        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/99999/pin/")
         self.assertEqual(resp.status_code, 404)
 
     def test_get_method_not_allowed(self):
-        resp = self.client.get(f"/api/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.get(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
         self.assertEqual(resp.status_code, 405)
 
 
@@ -1212,7 +1213,7 @@ class BackupDeleteTest(TempBackupDirMixin, TestCase):
         archive_path = Path(self.backup_record.file_path)
         self.assertTrue(archive_path.is_file())
         pk = self.backup_record.pk
-        resp = self.client.post(f"/backup/{pk}/delete/")
+        resp = self.client.post(f"/instance/{self.config.slug}/backup/{pk}/delete/")
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(BackupRecord.objects.filter(pk=pk).exists())
         self.assertFalse(archive_path.is_file())
@@ -1220,16 +1221,16 @@ class BackupDeleteTest(TempBackupDirMixin, TestCase):
     def test_delete_missing_file_still_succeeds(self):
         Path(self.backup_record.file_path).unlink()
         pk = self.backup_record.pk
-        resp = self.client.post(f"/backup/{pk}/delete/")
+        resp = self.client.post(f"/instance/{self.config.slug}/backup/{pk}/delete/")
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(BackupRecord.objects.filter(pk=pk).exists())
 
     def test_not_found(self):
-        resp = self.client.post("/backup/99999/delete/")
+        resp = self.client.post(f"/instance/{self.config.slug}/backup/99999/delete/")
         self.assertEqual(resp.status_code, 302)
 
     def test_get_not_allowed(self):
-        resp = self.client.get(f"/backup/{self.backup_record.pk}/delete/")
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/{self.backup_record.pk}/delete/")
         self.assertEqual(resp.status_code, 405)
 
 
@@ -1256,7 +1257,7 @@ class BulkActionTest(TempBackupDirMixin, TestCase):
 
     def _post(self, data):
         return self.client.post(
-            "/api/backup/bulk/",
+            f"/api/instance/{self.config.slug}/bulk/",
             json.dumps(data),
             content_type="application/json",
         )
@@ -1309,7 +1310,7 @@ class BulkActionTest(TempBackupDirMixin, TestCase):
         self.assertIn("99999", data["errors"][0])
 
     def test_get_not_allowed(self):
-        resp = self.client.get("/api/backup/bulk/")
+        resp = self.client.get(f"/api/instance/{self.config.slug}/bulk/")
         self.assertEqual(resp.status_code, 405)
 
 
@@ -1337,28 +1338,28 @@ class DiffViewTest(TempBackupDirMixin, TestCase):
             self.backup_b = create_backup(config=self.config, trigger="manual")
 
     def test_diff_vs_previous_returns_200(self):
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/")
         self.assertEqual(resp.status_code, 200)
 
     def test_diff_vs_previous_shows_changes(self):
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/")
         self.assertContains(resp, "New Tab")
 
     def test_diff_compare_returns_200(self):
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
         self.assertEqual(resp.status_code, 200)
 
     def test_diff_compare_shows_changes(self):
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
         self.assertContains(resp, "New Tab")
 
     def test_diff_first_backup_no_previous(self):
-        resp = self.client.get(f"/diff/{self.backup_a.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_a.pk}/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No previous backup")
 
     def test_diff_nonexistent_backup_redirects(self):
-        resp = self.client.get("/diff/99999/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/99999/")
         self.assertEqual(resp.status_code, 302)
 
     def test_diff_failed_backup_404(self):
@@ -1369,7 +1370,7 @@ class DiffViewTest(TempBackupDirMixin, TestCase):
             file_size=0,
             status="failed",
         )
-        resp = self.client.get(f"/diff/{failed.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{failed.pk}/")
         self.assertEqual(resp.status_code, 302)
 
     def test_diff_falls_back_to_stored_summary(self):
@@ -1378,7 +1379,7 @@ class DiffViewTest(TempBackupDirMixin, TestCase):
         self.assertTrue(self.backup_b.changes_summary)
         Path(self.backup_a.file_path).unlink()
         Path(self.backup_b.file_path).unlink()
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "New Tab")
 
@@ -1388,12 +1389,444 @@ class DiffViewTest(TempBackupDirMixin, TestCase):
         self.backup_b.save(update_fields=["changes_summary"])
         Path(self.backup_a.file_path).unlink()
         Path(self.backup_b.file_path).unlink()
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "no longer available")
 
     def test_comparison_dropdown_lists_other_backups(self):
-        resp = self.client.get(f"/diff/{self.backup_b.pk}/")
+        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/")
         # The dropdown should contain backup_a as an option
         content = resp.content.decode()
         self.assertIn(str(self.backup_a.pk), content)
+
+
+# ---------------------------------------------------------------------------
+# NodeRedConfig model — instance fields
+# ---------------------------------------------------------------------------
+
+
+class NodeRedConfigModelTest(TempBackupDirMixin, TestCase):
+    def test_slug_auto_generated_from_name(self):
+        config = NodeRedConfig.objects.create(name="Production")
+        self.assertEqual(config.slug, "production")
+
+    def test_slug_dedup(self):
+        c1 = NodeRedConfig.objects.create(name="Node-RED")
+        c2 = NodeRedConfig.objects.create(name="Node-RED")
+        self.assertEqual(c1.slug, "node-red")
+        self.assertEqual(c2.slug, "node-red-2")
+
+    def test_reserved_slug_avoided(self):
+        config = NodeRedConfig.objects.create(name="Add")
+        self.assertEqual(config.slug, "add-instance")
+
+    def test_reserved_slug_api(self):
+        config = NodeRedConfig.objects.create(name="Api")
+        self.assertEqual(config.slug, "api-instance")
+
+    def test_color_auto_assigned(self):
+        config = NodeRedConfig.objects.create(name="First")
+        self.assertEqual(config.color, "#3B82F6")
+
+    def test_second_color_different(self):
+        c1 = NodeRedConfig.objects.create(name="First")
+        c2 = NodeRedConfig.objects.create(name="Second")
+        self.assertNotEqual(c1.color, c2.color)
+        self.assertEqual(c2.color, "#EF4444")
+
+    def test_backup_dir_property(self):
+        config = NodeRedConfig.objects.create(name="Test")
+        expected = Path(settings.BACKUP_DIR) / config.slug
+        self.assertEqual(config.backup_dir, expected)
+
+    def test_get_nodered_credentials_with_prefix(self):
+        config = NodeRedConfig.objects.create(name="Cred Test", env_prefix="MYTEST")
+        with patch.dict("os.environ", {
+            "FLOWHISTORY_MYTEST_USER": "admin",
+            "FLOWHISTORY_MYTEST_PASS": "secret",
+        }):
+            user, pwd = config.get_nodered_credentials()
+            self.assertEqual(user, "admin")
+            self.assertEqual(pwd, "secret")
+
+    def test_get_nodered_credentials_no_prefix(self):
+        config = NodeRedConfig.objects.create(name="No Prefix")
+        user, pwd = config.get_nodered_credentials()
+        self.assertIsNone(user)
+        self.assertIsNone(pwd)
+
+    def test_schedule_enabled_field(self):
+        config = NodeRedConfig.objects.create(name="Sched Test")
+        self.assertTrue(config.schedule_enabled)
+        config.schedule_enabled = False
+        config.save()
+        config.refresh_from_db()
+        self.assertFalse(config.schedule_enabled)
+
+    def test_explicit_slug_not_overwritten(self):
+        config = NodeRedConfig.objects.create(name="Whatever", slug="custom-slug")
+        self.assertEqual(config.slug, "custom-slug")
+
+    def test_str_returns_name(self):
+        config = NodeRedConfig.objects.create(name="My Instance")
+        self.assertEqual(str(config), "My Instance")
+
+
+# ---------------------------------------------------------------------------
+# Discovery service
+# ---------------------------------------------------------------------------
+
+from backup.services.discovery_service import discover_instances_from_env
+
+
+class DiscoveryServiceTest(TestCase):
+    def _clean_env(self, env_dict):
+        """Return env_dict with only FLOWHISTORY_* keys removed from os.environ."""
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("FLOWHISTORY_")}
+        clean.update(env_dict)
+        return clean
+
+    def test_discover_remote_instance(self):
+        env = self._clean_env({"FLOWHISTORY_PROD_URL": "http://192.168.1.50:1880"})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        self.assertIn("PROD", result["created"])
+        config = NodeRedConfig.objects.get(env_prefix="PROD")
+        self.assertEqual(config.source_type, "remote")
+        self.assertEqual(config.nodered_url, "http://192.168.1.50:1880")
+
+    def test_discover_local_instance(self):
+        env = self._clean_env({
+            "FLOWHISTORY_DEV_FLOWS_PATH": "/data/flows.json",
+            "FLOWHISTORY_DEV_NAME": "Dev Box",
+        })
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        self.assertIn("DEV", result["created"])
+        config = NodeRedConfig.objects.get(env_prefix="DEV")
+        self.assertEqual(config.source_type, "local")
+        self.assertEqual(config.flows_path, "/data/flows.json")
+        self.assertEqual(config.name, "Dev Box")
+
+    def test_skip_existing_prefix(self):
+        NodeRedConfig.objects.create(name="Existing", env_prefix="PROD")
+        env = self._clean_env({"FLOWHISTORY_PROD_URL": "http://example.com:1880"})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        self.assertIn("PROD", result["skipped"])
+        self.assertEqual(result["created"], [])
+
+    def test_force_updates_existing(self):
+        config = NodeRedConfig.objects.create(
+            name="Old Name", env_prefix="PROD", source_type="remote",
+            nodered_url="http://old:1880",
+        )
+        env = self._clean_env({
+            "FLOWHISTORY_PROD_URL": "http://new:1880",
+            "FLOWHISTORY_PROD_NAME": "New Name",
+        })
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env(force=True)
+        self.assertIn("PROD", result["updated"])
+        config.refresh_from_db()
+        self.assertEqual(config.name, "New Name")
+        self.assertEqual(config.nodered_url, "http://new:1880")
+
+    def test_no_env_vars(self):
+        env = self._clean_env({})
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        self.assertEqual(result["created"], [])
+        self.assertEqual(result["skipped"], [])
+        self.assertEqual(result["updated"], [])
+
+    def test_both_url_and_flows_path_prefers_remote(self):
+        env = self._clean_env({
+            "FLOWHISTORY_DUAL_URL": "http://example.com:1880",
+            "FLOWHISTORY_DUAL_FLOWS_PATH": "/data/flows.json",
+        })
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        self.assertIn("DUAL", result["created"])
+        config = NodeRedConfig.objects.get(env_prefix="DUAL")
+        self.assertEqual(config.source_type, "remote")
+
+    def test_optional_fields_applied(self):
+        env = self._clean_env({
+            "FLOWHISTORY_FULL_URL": "http://example.com:1880",
+            "FLOWHISTORY_FULL_NAME": "Full Config",
+            "FLOWHISTORY_FULL_SCHEDULE": "weekly",
+            "FLOWHISTORY_FULL_TIME": "04:30",
+            "FLOWHISTORY_FULL_MAX_BACKUPS": "50",
+            "FLOWHISTORY_FULL_ALWAYS_BACKUP": "true",
+        })
+        with patch.dict("os.environ", env, clear=True):
+            result = discover_instances_from_env()
+        config = NodeRedConfig.objects.get(env_prefix="FULL")
+        self.assertEqual(config.backup_frequency, "weekly")
+        self.assertEqual(config.max_backups, 50)
+        self.assertTrue(config.always_backup)
+
+
+# ---------------------------------------------------------------------------
+# Multi-instance integration tests
+# ---------------------------------------------------------------------------
+
+
+@override_settings(REQUIRE_AUTH=False)
+class AggregateDashboardTest(TestCase):
+    def test_no_instances_redirects_to_add(self):
+        resp = self.client.get("/")
+        self.assertRedirects(resp, "/instance/add/")
+
+    def test_single_instance_redirects_to_dashboard(self):
+        config = NodeRedConfig.objects.create(name="Solo")
+        resp = self.client.get("/")
+        self.assertRedirects(resp, f"/instance/{config.slug}/")
+
+    def test_multiple_instances_shows_grid(self):
+        NodeRedConfig.objects.create(name="Prod")
+        NodeRedConfig.objects.create(name="Dev")
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Prod")
+        self.assertContains(resp, "Dev")
+
+
+@override_settings(REQUIRE_AUTH=False)
+class InstanceIsolationTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_a = self.backup_dir / "a" / "flows.json"
+        self.flows_a.parent.mkdir()
+        self.flows_a.write_text(json.dumps(SAMPLE_FLOWS))
+
+        self.flows_b = self.backup_dir / "b" / "flows.json"
+        self.flows_b.parent.mkdir()
+        self.flows_b.write_text(json.dumps([{"id": "x", "type": "tab", "label": "X"}]))
+
+        self.config_a = NodeRedConfig.objects.create(name="Instance A", flows_path=str(self.flows_a))
+        self.config_b = NodeRedConfig.objects.create(name="Instance B", flows_path=str(self.flows_b))
+
+    def test_backups_isolated_between_instances(self):
+        rec_a = create_backup(self.config_a, trigger="manual")
+        rec_b = create_backup(self.config_b, trigger="manual")
+        self.assertEqual(rec_a.config, self.config_a)
+        self.assertEqual(rec_b.config, self.config_b)
+        self.assertNotEqual(
+            Path(rec_a.file_path).parent,
+            Path(rec_b.file_path).parent,
+        )
+
+    def test_backup_dirs_use_slug(self):
+        rec = create_backup(self.config_a, trigger="manual")
+        self.assertIn(self.config_a.slug, rec.file_path)
+
+    def test_instance_dashboard_only_shows_own_backups(self):
+        create_backup(self.config_a, trigger="manual")
+        create_backup(self.config_b, trigger="manual")
+
+        resp = self.client.get(f"/instance/{self.config_a.slug}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["backup_count"], 1)
+
+    def test_cannot_access_other_instance_backup(self):
+        rec_b = create_backup(self.config_b, trigger="manual")
+        # Try to access config_b's backup via config_a's URL
+        resp = self.client.get(f"/instance/{self.config_a.slug}/backup/{rec_b.pk}/")
+        self.assertEqual(resp.status_code, 302)  # redirect (not found)
+
+
+@override_settings(REQUIRE_AUTH=False)
+class InstanceDeleteTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            name="To Delete", flows_path=str(self.flows_file),
+        )
+        create_backup(self.config, trigger="manual")
+
+    def test_get_shows_confirmation(self):
+        resp = self.client.get(f"/instance/{self.config.slug}/delete/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "To Delete")
+        self.assertContains(resp, "1")  # backup count
+
+    def test_post_deletes_instance(self):
+        slug = self.config.slug
+        resp = self.client.post(f"/instance/{slug}/delete/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "/")
+        self.assertFalse(NodeRedConfig.objects.filter(slug=slug).exists())
+
+    def test_post_with_delete_files(self):
+        slug = self.config.slug
+        backup_dir = self.config.backup_dir
+        self.assertTrue(backup_dir.is_dir())
+        resp = self.client.post(f"/instance/{slug}/delete/", {"delete_files": "on"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(backup_dir.is_dir())
+
+
+@override_settings(REQUIRE_AUTH=False)
+class RemotePollerTest(TestCase):
+    def test_poll_once_detects_change(self):
+        config = NodeRedConfig.objects.create(
+            name="Remote Test",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+            watch_enabled=True,
+        )
+
+        from backup.services.remote_service import RemotePoller
+
+        poller = RemotePoller(config.pk)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = json.dumps([{"id": "tab1", "type": "tab", "label": "Test"}])
+        mock_resp.json.return_value = [{"id": "tab1", "type": "tab", "label": "Test"}]
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("backup.services.remote_service.requests") as mock_requests:
+            mock_requests.get.return_value = mock_resp
+            with patch("backup.services.backup_service.create_backup") as mock_backup:
+                mock_backup.return_value = MagicMock(status="success", filename="test.tar.gz")
+                result = poller.poll_once()
+                self.assertTrue(mock_backup.called)
+
+    def test_poll_once_skips_unchanged(self):
+        config = NodeRedConfig.objects.create(
+            name="Remote Unchanged",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+            watch_enabled=True,
+        )
+
+        from backup.services.remote_service import RemotePoller
+
+        poller = RemotePoller(config.pk)
+        flows_json = json.dumps([{"id": "tab1", "type": "tab"}])
+        poller._last_checksum = hashlib.sha256(flows_json.encode()).hexdigest()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = flows_json
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("backup.services.remote_service.requests") as mock_requests:
+            mock_requests.get.return_value = mock_resp
+            result = poller.poll_once()
+            self.assertFalse(result)  # No change
+
+    def test_backoff_increases_interval(self):
+        config = NodeRedConfig.objects.create(
+            name="Backoff Test",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+            poll_interval_seconds=30,
+        )
+
+        from backup.services.remote_service import RemotePoller
+
+        poller = RemotePoller(config.pk)
+        self.assertEqual(poller.get_poll_interval(config), 30)
+
+        poller._consecutive_failures = 3  # At threshold
+        self.assertEqual(poller.get_poll_interval(config), 60)  # Doubled
+
+        poller._consecutive_failures = 4
+        self.assertEqual(poller.get_poll_interval(config), 120)
+
+        poller._consecutive_failures = 10
+        self.assertLessEqual(poller.get_poll_interval(config), 300)  # Capped
+
+
+@override_settings(REQUIRE_AUTH=False)
+class RemoteRestoreTest(TempBackupDirMixin, TestCase):
+    """Tests for restoring backups to remote Node-RED instances."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = NodeRedConfig.objects.create(
+            name="Remote Restore",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+            env_prefix="REMOTE",
+        )
+        # Create a backup archive with flows.json
+        flows_bytes = json.dumps(SAMPLE_FLOWS).encode()
+        backup_dir = self.config.backup_dir
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = backup_dir / "test_restore.tar.gz"
+        with tarfile.open(archive_path, "w:gz") as tar:
+            info = tarfile.TarInfo(name="flows.json")
+            info.size = len(flows_bytes)
+            tar.addfile(info, BytesIO(flows_bytes))
+        checksum = hashlib.sha256(flows_bytes).hexdigest()
+        self.backup_record = BackupRecord.objects.create(
+            config=self.config,
+            filename="test_restore.tar.gz",
+            file_path=str(archive_path),
+            file_size=archive_path.stat().st_size,
+            checksum=checksum,
+            status="success",
+            trigger="manual",
+        )
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_deploys_flows(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "success")
+        mock_deploy.assert_called_once()
+        call_args = mock_deploy.call_args
+        self.assertEqual(call_args[0][0], self.config)
+        # Verify flows.json content was passed
+        deployed = json.loads(call_args[0][1])
+        self.assertEqual(deployed, SAMPLE_FLOWS)
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_records_files(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.files_restored, ["flows.json"])
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_deploy_failure(self, mock_safety, mock_deploy):
+        mock_safety.return_value = None
+        mock_deploy.side_effect = Exception("Connection refused")
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("Failed to deploy", result.error_message)
+
+    @patch("backup.services.remote_service.deploy_remote_flows")
+    @patch("backup.services.restore_service.create_backup")
+    def test_remote_restore_no_container_restart(self, mock_safety, mock_deploy):
+        """Remote restore should not attempt container restart."""
+        mock_safety.return_value = None
+        self.config.restart_on_restore = True
+        self.config.save()
+        result = restore_backup(self.backup_record.pk)
+        self.assertEqual(result.status, "success")
+        self.assertFalse(result.container_restarted)
+
+    def test_remote_restore_api_endpoint(self):
+        """API endpoint should accept restore for remote instances."""
+        with patch("backup.views.restore_backup") as mock_restore:
+            mock_restore.return_value = RestoreRecord(
+                config=self.config,
+                backup=self.backup_record,
+                status="success",
+                files_restored=["flows.json"],
+            )
+            resp = self.client.post(
+                f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/"
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.json()["status"], "success")
