@@ -33,7 +33,7 @@
     @apply my-1 border-t border-gray-200 dark:border-gray-700;
   }
   .th-label {
-    @apply px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400;
+    @apply px-4 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 dark:text-gray-400;
   }
   .tooltip-trigger {
     @apply relative inline-flex cursor-help ml-1;
