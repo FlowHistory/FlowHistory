@@ -16,10 +16,11 @@ from backup.services.docker_service import restart_container
 
 logger = logging.getLogger(__name__)
 
-# Ownership for restored files (Node-RED container user)
-NODERED_UID = 1000
-NODERED_GID = 1000
-FILE_MODE = 0o644
+# Ownership for restored files (Node-RED container user, configurable via env)
+NODERED_UID = int(os.environ.get("NODERED_UID", "1000"))
+NODERED_GID = int(os.environ.get("NODERED_GID", "1000"))
+DEFAULT_FILE_MODE = 0o644
+CREDENTIAL_FILE_MODE = 0o600  # flows_cred.json — owner only
 
 
 def restore_backup(backup_id, restart=None):
@@ -210,7 +211,8 @@ def _extract_and_restore(record, config):
             except OSError:
                 logger.warning("Could not chown %s (not running as root?)", dst)
             try:
-                os.chmod(str(dst), FILE_MODE)
+                mode = CREDENTIAL_FILE_MODE if member.name == "flows_cred.json" else DEFAULT_FILE_MODE
+                os.chmod(str(dst), mode)
             except OSError:
                 logger.warning("Could not chmod %s", dst)
             files_restored.append(member.name)

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import threading
+import time
 
 import requests
 
@@ -12,7 +13,8 @@ logger = logging.getLogger(__name__)
 MAX_BACKOFF_SECONDS = 300
 AUTH_BACKOFF_SECONDS = 600  # 10 minutes — matches Node-RED's rate limit window
 BACKOFF_THRESHOLD = 3
-MAX_RESPONSE_BYTES = 50_000_000  # 50 MB safety limit
+MAX_RESPONSE_BYTES = 10_000_000  # 10 MB safety limit
+TOKEN_TTL_SECONDS = 3300  # Refresh cached tokens after 55 minutes
 
 
 def authenticate_nodered(url, username, password, scope="flows.read"):
@@ -23,6 +25,8 @@ def authenticate_nodered(url, username, password, scope="flows.read"):
     """
     if not username:
         return None
+    if url.startswith("http://"):
+        logger.warning("Sending credentials over plaintext HTTP to %s — use HTTPS in production", url)
     resp = requests.post(
         f"{url}/auth/token",
         data={
@@ -136,6 +140,7 @@ class RemotePoller:
         self._consecutive_failures = 0
         self._auth_failure = False
         self._cached_token = None
+        self._token_acquired_at = 0
         self._lock = threading.Lock()
 
     def _get_config(self):
@@ -158,7 +163,13 @@ class RemotePoller:
 
         try:
             with self._lock:
-                flows_text, self._cached_token = fetch_remote_flows(config, token=self._cached_token)
+                # Expire cached token after TTL
+                if self._cached_token and (time.monotonic() - self._token_acquired_at) > TOKEN_TTL_SECONDS:
+                    self._cached_token = None
+                flows_text, new_token = fetch_remote_flows(config, token=self._cached_token)
+                if new_token != self._cached_token:
+                    self._token_acquired_at = time.monotonic()
+                self._cached_token = new_token
         except Exception as e:
             with self._lock:
                 self._consecutive_failures += 1
@@ -199,10 +210,10 @@ class RemotePoller:
             config.save(update_fields=["last_backup_error"])
 
         checksum = hashlib.sha256(flows_text.encode()).hexdigest()
-        if checksum == self._last_checksum:
-            return False
-
-        self._last_checksum = checksum
+        with self._lock:
+            if checksum == self._last_checksum:
+                return False
+            self._last_checksum = checksum
         logger.info("Remote flow change detected for %s", config.name)
 
         try:
@@ -275,7 +286,7 @@ def start_all_remote_pollers(stop_event):
         thread = threading.Thread(
             target=_run_remote_polling_loop,
             args=(poller, stop_event, config.pk),
-            daemon=True,
+            daemon=False,
         )
         thread.start()
         threads.append(thread)

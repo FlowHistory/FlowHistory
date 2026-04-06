@@ -87,7 +87,14 @@ def _build_config_kwargs(prefix, source_type):
     for env_suffix, (field_name, converter) in env_map.items():
         value = os.environ.get(f"FLOWHISTORY_{prefix}_{env_suffix}")
         if value is not None:
-            kwargs[field_name] = converter(value)
+            try:
+                kwargs[field_name] = converter(value)
+            except (ValueError, TypeError):
+                logger.warning(
+                    "Invalid value for FLOWHISTORY_%s_%s=%r, skipping",
+                    prefix, env_suffix, value,
+                )
+                continue
 
     # Validate enum fields
     freq = kwargs.get("backup_frequency")

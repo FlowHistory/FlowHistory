@@ -7,6 +7,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.db.models import Sum
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -153,7 +154,7 @@ def instance_delete(request, slug):
 
     # GET — show confirmation page
     backups = BackupRecord.objects.filter(config=config, status="success")
-    total_size = sum(b.file_size for b in backups.only("file_size"))
+    total_size = backups.aggregate(total=Sum("file_size"))["total"] or 0
 
     return render(request, "backup/instance_delete.html", {
         "config": config,

@@ -142,6 +142,14 @@ REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "false").lower() in ("true", "1", 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 LOGIN_URL = "/login/"
 
+# Security headers (enable when not debugging)
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+
 # Backup storage
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", BASE_DIR / "backups"))
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)

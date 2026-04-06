@@ -241,7 +241,7 @@ def start_all_watchers():
         stop_event.wait()
     finally:
         observer.stop()
-        observer.join()
+        observer.join(timeout=10)
         for t in poll_threads:
             t.join(timeout=5)
         logger.info("All file watchers stopped")

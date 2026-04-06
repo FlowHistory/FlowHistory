@@ -58,7 +58,7 @@ function showBanner(message, type) {
 
   var btn = document.createElement('button');
   btn.className = 'ml-4 ' + (dismiss[type] || dismiss.error);
-  btn.innerHTML = '&times;';
+  btn.textContent = '\u00D7';
   btn.onclick = function () { div.remove(); };
 
   div.appendChild(span);

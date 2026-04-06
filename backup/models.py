@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from django.conf import settings
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -22,7 +23,10 @@ class NodeRedConfig(models.Model):
     # Instance identity
     name = models.CharField(max_length=100, default="Node-RED")
     slug = models.SlugField(max_length=100, unique=True)
-    color = models.CharField(max_length=7, blank=True, default="")
+    color = models.CharField(
+        max_length=7, blank=True, default="",
+        validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Enter a valid hex color.")],
+    )
     is_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -45,8 +49,8 @@ class NodeRedConfig(models.Model):
     backup_day = models.SmallIntegerField(
         default=0, help_text="Day of week for weekly backups (0=Monday)"
     )
-    max_backups = models.PositiveIntegerField(default=20)
-    max_age_days = models.PositiveIntegerField(default=30)
+    max_backups = models.PositiveIntegerField(default=20, validators=[MinValueValidator(1)])
+    max_age_days = models.PositiveIntegerField(default=30, validators=[MinValueValidator(1)])
     schedule_enabled = models.BooleanField(default=True)
     always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
