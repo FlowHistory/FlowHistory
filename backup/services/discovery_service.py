@@ -98,6 +98,11 @@ def _build_config_kwargs(prefix, source_type):
         logger.warning("Invalid FLOWHISTORY_%s_DAY=%r, using default 0", prefix, day)
         del kwargs["backup_day"]
 
+    if freq == "weekly" and "backup_day" not in kwargs:
+        logger.warning(
+            "FLOWHISTORY_%s_SCHEDULE=weekly but _DAY not set, defaulting to Monday (0)", prefix,
+        )
+
     bool_map = {
         "WATCH": "watch_enabled",
         "ALWAYS_BACKUP": "always_backup",
