@@ -6,7 +6,10 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from backup.services.notifications.base import (
-    EVENT_COLORS, EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+    EVENT_COLORS,
+    EVENT_EMOJI,
+    NotificationBackend,
+    NotificationPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,7 +18,6 @@ TIMEOUT_SECONDS = 10
 
 
 class SlackBackend(NotificationBackend):
-
     def name(self):
         return "Slack"
 
@@ -37,7 +39,9 @@ class SlackBackend(NotificationBackend):
             fields.append({"title": "File", "value": payload.filename, "short": True})
         if payload.file_size is not None:
             size_kb = payload.file_size / 1024
-            fields.append({"title": "Size", "value": f"{size_kb:.1f} KB", "short": True})
+            fields.append(
+                {"title": "Size", "value": f"{size_kb:.1f} KB", "short": True}
+            )
 
         attachment = {
             "color": color,
@@ -51,7 +55,9 @@ class SlackBackend(NotificationBackend):
             attachment["text"] += f"\n```{payload.error[:1000]}```"
 
         body = json.dumps({"attachments": [attachment]}).encode()
-        req = Request(webhook_url, data=body, headers={"Content-Type": "application/json"})
+        req = Request(
+            webhook_url, data=body, headers={"Content-Type": "application/json"}
+        )
 
         try:
             with urlopen(req, timeout=TIMEOUT_SECONDS) as response:

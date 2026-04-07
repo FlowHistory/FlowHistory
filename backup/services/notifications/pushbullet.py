@@ -6,7 +6,9 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from backup.services.notifications.base import (
-    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+    EVENT_EMOJI,
+    NotificationBackend,
+    NotificationPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,6 @@ TIMEOUT_SECONDS = 10
 
 
 class PushbulletBackend(NotificationBackend):
-
     def name(self):
         return "Pushbullet"
 
@@ -42,11 +43,13 @@ class PushbulletBackend(NotificationBackend):
             lines.append(f"Error: {payload.error[:1000]}")
         lines.append(f"\nFlowHistory \u2014 {payload.instance_name}")
 
-        body = json.dumps({
-            "type": "note",
-            "title": title,
-            "body": "\n".join(lines),
-        }).encode()
+        body = json.dumps(
+            {
+                "type": "note",
+                "title": title,
+                "body": "\n".join(lines),
+            }
+        ).encode()
         req = Request(
             "https://api.pushbullet.com/v2/pushes",
             data=body,

@@ -1,16 +1,13 @@
 """Restore Node-RED files from a backup archive."""
 
 import hashlib
-import json
 import logging
 import os
 import shutil
 import tarfile
 from pathlib import Path
 
-from django.utils import timezone
-
-from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
+from backup.models import BackupRecord, RestoreRecord
 from backup.services.backup_service import create_backup
 from backup.services.docker_service import restart_container
 
@@ -95,12 +92,19 @@ def _notify_restore(config, backup, restore_record):
 
         is_success = restore_record.status == "success"
         payload = NotificationPayload(
-            event=NotifyEvent.RESTORE_SUCCESS if is_success else NotifyEvent.RESTORE_FAILED,
+            event=NotifyEvent.RESTORE_SUCCESS
+            if is_success
+            else NotifyEvent.RESTORE_FAILED,
             instance_name=config.name,
             instance_slug=config.slug,
             instance_color=config.color,
-            title=f"Restore {'successful' if is_success else 'failed'} \u2014 {config.name}",
-            message=f"Restored from {backup.filename}" if is_success else "Restore attempt failed.",
+            title=(
+                f"Restore {'successful' if is_success else 'failed'}"
+                f" \u2014 {config.name}"
+            ),
+            message=f"Restored from {backup.filename}"
+            if is_success
+            else "Restore attempt failed.",
             error=restore_record.error_message if not is_success else None,
             filename=backup.filename if backup else None,
         )
@@ -149,7 +153,11 @@ def _verify_checksum(record):
 
     actual = hashlib.sha256(content).hexdigest()
     if actual != record.checksum:
-        return f"Checksum mismatch: expected {record.checksum[:12]}..., got {actual[:12]}..."
+        return (
+            f"Checksum mismatch: expected"
+            f" {record.checksum[:12]}...,"
+            f" got {actual[:12]}..."
+        )
 
     return None
 
@@ -160,16 +168,21 @@ def _create_safety_backup(config):
         flows_data = None
         if config.source_type == "remote":
             from backup.services.remote_service import fetch_remote_flows
+
             flows_data, _ = fetch_remote_flows(config)
 
-        result = create_backup(config=config, trigger="pre_restore", flows_data=flows_data)
+        result = create_backup(
+            config=config, trigger="pre_restore", flows_data=flows_data
+        )
         if result and result.status == "success":
             logger.info("Pre-restore safety backup created: %s", result.filename)
             return result
         logger.warning("Safety backup did not succeed, proceeding with restore")
         return result
     except Exception:
-        logger.warning("Failed to create safety backup, proceeding with restore", exc_info=True)
+        logger.warning(
+            "Failed to create safety backup, proceeding with restore", exc_info=True
+        )
         return None
 
 
@@ -182,7 +195,12 @@ def _restore_remote(record, config, safety_backup):
             member = tar.getmember("flows.json")
             f = tar.extractfile(member)
             if f is None:
-                return _fail(config, record, safety_backup, "Could not read flows.json from archive")
+                return _fail(
+                    config,
+                    record,
+                    safety_backup,
+                    "Could not read flows.json from archive",
+                )
             flows_json = f.read()
     except (tarfile.TarError, OSError, KeyError) as e:
         return _fail(config, record, safety_backup, f"Failed to read archive: {e}")
@@ -190,7 +208,12 @@ def _restore_remote(record, config, safety_backup):
     try:
         deploy_remote_flows(config, flows_json)
     except Exception as e:
-        return _fail(config, record, safety_backup, f"Failed to deploy flows to remote instance: {e}")
+        return _fail(
+            config,
+            record,
+            safety_backup,
+            f"Failed to deploy flows to remote instance: {e}",
+        )
 
     restore_record = RestoreRecord.objects.create(
         config=config,
@@ -200,7 +223,9 @@ def _restore_remote(record, config, safety_backup):
         files_restored=["flows.json"],
     )
 
-    logger.info("Remote restore deployed to %s from %s", config.nodered_url, record.filename)
+    logger.info(
+        "Remote restore deployed to %s from %s", config.nodered_url, record.filename
+    )
     _notify_restore(config, record, restore_record)
     return restore_record
 
@@ -221,7 +246,8 @@ def _extract_and_restore(record, config):
             # Security: only extract known safe file names, skip symlinks
             safe_names = {"flows.json", "flows_cred.json", "settings.js"}
             members = [
-                m for m in tar.getmembers()
+                m
+                for m in tar.getmembers()
                 if m.name in safe_names and not m.issym() and not m.islnk()
             ]
             tar.extractall(path=tmp_dir, members=members)
@@ -237,7 +263,11 @@ def _extract_and_restore(record, config):
             except OSError:
                 logger.warning("Could not chown %s (not running as root?)", dst)
             try:
-                mode = CREDENTIAL_FILE_MODE if member.name == "flows_cred.json" else DEFAULT_FILE_MODE
+                mode = (
+                    CREDENTIAL_FILE_MODE
+                    if member.name == "flows_cred.json"
+                    else DEFAULT_FILE_MODE
+                )
                 os.chmod(str(dst), mode)
             except OSError:
                 logger.warning("Could not chmod %s", dst)

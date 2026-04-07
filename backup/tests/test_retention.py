@@ -31,12 +31,16 @@ class RetentionServiceTest(TempBackupDirMixin, TestCase):
         records = []
         with patch("backup.services.retention_service.apply_retention"):
             for i in range(count):
-                flows = SAMPLE_FLOWS + [{"id": f"extra_{i}", "type": "inject", "z": "tab1"}]
+                flows = SAMPLE_FLOWS + [
+                    {"id": f"extra_{i}", "type": "inject", "z": "tab1"}
+                ]
                 self.flows_file.write_text(json.dumps(flows))
                 record = create_backup(config=self.config, trigger="manual")
                 if record and kwargs.get("age_days"):
                     # Backdate the record
-                    record.created_at = record.created_at - timedelta(days=kwargs["age_days"])
+                    record.created_at = record.created_at - timedelta(
+                        days=kwargs["age_days"]
+                    )
                     record.save(update_fields=["created_at"])
                 records.append(record)
         return records
@@ -69,11 +73,9 @@ class RetentionServiceTest(TempBackupDirMixin, TestCase):
         record = create_backup(config=self.config, trigger="pre_restore")
         # Create enough to exceed max_backups
         self._create_backups(4)
-        result = apply_retention(self.config)
+        apply_retention(self.config)
         # pre_restore should still exist
-        self.assertTrue(
-            BackupRecord.objects.filter(pk=record.pk).exists()
-        )
+        self.assertTrue(BackupRecord.objects.filter(pk=record.pk).exists())
 
     def test_disk_file_deleted(self):
         from backup.services.retention_service import apply_retention

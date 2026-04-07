@@ -39,11 +39,16 @@ class InstanceIsolationTest(TempBackupDirMixin, TestCase):
         self.flows_b.parent.mkdir()
         self.flows_b.write_text(json.dumps([{"id": "x", "type": "tab", "label": "X"}]))
 
-        self.config_a = NodeRedConfig.objects.create(name="Instance A", flows_path=str(self.flows_a))
-        self.config_b = NodeRedConfig.objects.create(name="Instance B", flows_path=str(self.flows_b))
+        self.config_a = NodeRedConfig.objects.create(
+            name="Instance A", flows_path=str(self.flows_a)
+        )
+        self.config_b = NodeRedConfig.objects.create(
+            name="Instance B", flows_path=str(self.flows_b)
+        )
 
     def test_backups_isolated_between_instances(self):
         from pathlib import Path
+
         rec_a = create_backup(self.config_a, trigger="manual")
         rec_b = create_backup(self.config_b, trigger="manual")
         self.assertEqual(rec_a.config, self.config_a)
@@ -79,7 +84,8 @@ class InstanceDeleteTest(TempBackupDirMixin, TestCase):
         self.flows_file = self.backup_dir / "flows.json"
         self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
         self.config = NodeRedConfig.objects.create(
-            name="To Delete", flows_path=str(self.flows_file),
+            name="To Delete",
+            flows_path=str(self.flows_file),
         )
         create_backup(self.config, trigger="manual")
 

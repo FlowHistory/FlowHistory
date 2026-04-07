@@ -2,11 +2,10 @@ import hashlib
 import json
 import tarfile
 from pathlib import Path
-from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from backup.models import BackupRecord, NodeRedConfig
+from backup.models import NodeRedConfig
 from backup.services.backup_service import create_backup
 from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 

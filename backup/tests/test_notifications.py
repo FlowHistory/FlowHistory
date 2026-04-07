@@ -4,11 +4,10 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from backup.models import BackupRecord, NodeRedConfig
+from backup.models import NodeRedConfig
 from backup.services.backup_service import create_backup
 from backup.services.notification_service import (
     _get_instance_events,
-    get_configured_backends,
     notify,
 )
 from backup.services.notifications.base import (
@@ -23,8 +22,10 @@ from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 class NotifyEventTest(TestCase):
     def test_all_contains_every_event(self):
         expected = {
-            "backup_success", "backup_failed",
-            "restore_success", "restore_failed",
+            "backup_success",
+            "backup_failed",
+            "restore_success",
+            "restore_failed",
             "retention_cleanup",
         }
         self.assertEqual(NotifyEvent.ALL, expected)
@@ -107,24 +108,33 @@ class GetNotificationUrlTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Prod", env_prefix="PROD")
 
-    @patch.dict(os.environ, {"FLOWHISTORY_PROD_DISCORD_WEBHOOK_URL": "https://instance.url"})
+    @patch.dict(
+        os.environ, {"FLOWHISTORY_PROD_DISCORD_WEBHOOK_URL": "https://instance.url"}
+    )
     def test_instance_url_takes_priority(self):
         self.assertEqual(
             self.config.get_notification_url("DISCORD_WEBHOOK_URL"),
             "https://instance.url",
         )
 
-    @patch.dict(os.environ, {"FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url"}, clear=False)
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url"},
+        clear=False,
+    )
     def test_global_fallback(self):
         self.assertEqual(
             self.config.get_notification_url("DISCORD_WEBHOOK_URL"),
             "https://global.url",
         )
 
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_PROD_DISCORD_WEBHOOK_URL": "https://instance.url",
-        "FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_PROD_DISCORD_WEBHOOK_URL": "https://instance.url",
+            "FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url",
+        },
+    )
     def test_instance_overrides_global(self):
         self.assertEqual(
             self.config.get_notification_url("DISCORD_WEBHOOK_URL"),
@@ -137,8 +147,12 @@ class GetNotificationUrlTest(TestCase):
 
     def test_no_prefix_uses_global_only(self):
         config = NodeRedConfig.objects.create(name="NoPfx", env_prefix="")
-        with patch.dict(os.environ, {"FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url"}):
-            self.assertEqual(config.get_notification_url("DISCORD_WEBHOOK_URL"), "https://global.url")
+        with patch.dict(
+            os.environ, {"FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL": "https://global.url"}
+        ):
+            self.assertEqual(
+                config.get_notification_url("DISCORD_WEBHOOK_URL"), "https://global.url"
+            )
 
 
 class NotifyDispatcherTest(TestCase):
@@ -219,22 +233,31 @@ class DiscordBackendTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
 
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"},
+    )
     def test_is_configured_with_instance_url(self):
         from backup.services.notifications.discord import DiscordBackend
+
         backend = DiscordBackend()
         self.assertTrue(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_url(self):
         from backup.services.notifications.discord import DiscordBackend
+
         backend = DiscordBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch("backup.services.notifications.discord.urlopen")
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"},
+    )
     def test_send_posts_to_webhook(self, mock_urlopen):
         from backup.services.notifications.discord import DiscordBackend
+
         backend = DiscordBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_SUCCESS,
@@ -261,9 +284,13 @@ class DiscordBackendTest(TestCase):
         self.assertEqual(len(embed["fields"]), 3)  # trigger, filename, size
 
     @patch("backup.services.notifications.discord.urlopen")
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"},
+    )
     def test_send_includes_error_field(self, mock_urlopen):
         from backup.services.notifications.discord import DiscordBackend
+
         backend = DiscordBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_FAILED,
@@ -283,10 +310,15 @@ class DiscordBackendTest(TestCase):
         self.assertIn("File not found", error_field["value"])
 
     @patch("backup.services.notifications.discord.urlopen")
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_DISCORD_WEBHOOK_URL": "https://discord.test/webhook"},
+    )
     def test_send_handles_urlopen_failure(self, mock_urlopen):
         from urllib.error import URLError
+
         from backup.services.notifications.discord import DiscordBackend
+
         mock_urlopen.side_effect = URLError("Connection refused")
         backend = DiscordBackend()
         payload = NotificationPayload(
@@ -305,22 +337,31 @@ class SlackBackendTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
 
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"},
+    )
     def test_is_configured_with_instance_url(self):
         from backup.services.notifications.slack import SlackBackend
+
         backend = SlackBackend()
         self.assertTrue(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_url(self):
         from backup.services.notifications.slack import SlackBackend
+
         backend = SlackBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch("backup.services.notifications.slack.urlopen")
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"},
+    )
     def test_send_posts_to_webhook(self, mock_urlopen):
         from backup.services.notifications.slack import SlackBackend
+
         backend = SlackBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_SUCCESS,
@@ -346,16 +387,24 @@ class SlackBackendTest(TestCase):
         self.assertEqual(len(attachment["fields"]), 3)
 
     @patch("backup.services.notifications.slack.urlopen")
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    @patch.dict(
+        os.environ,
+        {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"},
+    )
     def test_send_handles_failure(self, mock_urlopen):
         from urllib.error import URLError
+
         from backup.services.notifications.slack import SlackBackend
+
         mock_urlopen.side_effect = URLError("Connection refused")
         backend = SlackBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_FAILED,
-            instance_name="Test", instance_slug="test",
-            instance_color="#EF4444", title="Failed", message="Failed",
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#EF4444",
+            title="Failed",
+            message="Failed",
         )
         backend.send(self.config, payload)
 
@@ -364,34 +413,44 @@ class TelegramBackendTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
 
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
-        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+            "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+        },
+    )
     def test_is_configured_with_both_fields(self):
         from backup.services.notifications.telegram import TelegramBackend
+
         backend = TelegramBackend()
         self.assertTrue(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {"FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC"})
     def test_is_not_configured_without_chat_id(self):
         from backup.services.notifications.telegram import TelegramBackend
+
         backend = TelegramBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_any(self):
         from backup.services.notifications.telegram import TelegramBackend
+
         backend = TelegramBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch("backup.services.notifications.telegram.urlopen")
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
-        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+            "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+        },
+    )
     def test_send_posts_to_api(self, mock_urlopen):
         from backup.services.notifications.telegram import TelegramBackend
+
         backend = TelegramBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_SUCCESS,
@@ -408,26 +467,36 @@ class TelegramBackendTest(TestCase):
 
         mock_urlopen.assert_called_once()
         req = mock_urlopen.call_args[0][0]
-        self.assertEqual(req.full_url, "https://api.telegram.org/bot123:ABC/sendMessage")
+        self.assertEqual(
+            req.full_url, "https://api.telegram.org/bot123:ABC/sendMessage"
+        )
         body = json.loads(req.data)
         self.assertEqual(body["chat_id"], "456")
         self.assertEqual(body["parse_mode"], "MarkdownV2")
         self.assertIn("Backup successful", body["text"])
 
     @patch("backup.services.notifications.telegram.urlopen")
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
-        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+            "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+        },
+    )
     def test_send_handles_failure(self, mock_urlopen):
         from urllib.error import URLError
+
         from backup.services.notifications.telegram import TelegramBackend
+
         mock_urlopen.side_effect = URLError("Connection refused")
         backend = TelegramBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_FAILED,
-            instance_name="Test", instance_slug="test",
-            instance_color="#EF4444", title="Failed", message="Failed",
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#EF4444",
+            title="Failed",
+            message="Failed",
         )
         backend.send(self.config, payload)
 
@@ -439,12 +508,14 @@ class PushbulletBackendTest(TestCase):
     @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
     def test_is_configured_with_api_key(self):
         from backup.services.notifications.pushbullet import PushbulletBackend
+
         backend = PushbulletBackend()
         self.assertTrue(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_key(self):
         from backup.services.notifications.pushbullet import PushbulletBackend
+
         backend = PushbulletBackend()
         self.assertFalse(backend.is_configured(self.config))
 
@@ -452,6 +523,7 @@ class PushbulletBackendTest(TestCase):
     @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
     def test_send_posts_to_api(self, mock_urlopen):
         from backup.services.notifications.pushbullet import PushbulletBackend
+
         backend = PushbulletBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_SUCCESS,
@@ -479,13 +551,18 @@ class PushbulletBackendTest(TestCase):
     @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
     def test_send_handles_failure(self, mock_urlopen):
         from urllib.error import URLError
+
         from backup.services.notifications.pushbullet import PushbulletBackend
+
         mock_urlopen.side_effect = URLError("Connection refused")
         backend = PushbulletBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_FAILED,
-            instance_name="Test", instance_slug="test",
-            instance_color="#EF4444", title="Failed", message="Failed",
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#EF4444",
+            title="Failed",
+            message="Failed",
         )
         backend.send(self.config, payload)
 
@@ -494,34 +571,46 @@ class HomeAssistantBackendTest(TestCase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
 
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
-        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+            "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+        },
+    )
     def test_is_configured_with_both_fields(self):
         from backup.services.notifications.homeassistant import HomeAssistantBackend
+
         backend = HomeAssistantBackend()
         self.assertTrue(backend.is_configured(self.config))
 
-    @patch.dict(os.environ, {"FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123"})
+    @patch.dict(
+        os.environ, {"FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123"}
+    )
     def test_is_not_configured_without_token(self):
         from backup.services.notifications.homeassistant import HomeAssistantBackend
+
         backend = HomeAssistantBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch.dict(os.environ, {}, clear=True)
     def test_is_not_configured_without_any(self):
         from backup.services.notifications.homeassistant import HomeAssistantBackend
+
         backend = HomeAssistantBackend()
         self.assertFalse(backend.is_configured(self.config))
 
     @patch("backup.services.notifications.homeassistant.urlopen")
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
-        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+            "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+        },
+    )
     def test_send_posts_to_api(self, mock_urlopen):
         from backup.services.notifications.homeassistant import HomeAssistantBackend
+
         backend = HomeAssistantBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_SUCCESS,
@@ -548,19 +637,27 @@ class HomeAssistantBackendTest(TestCase):
         self.assertEqual(body["notification_id"], "flowhistory_test_backup_success")
 
     @patch("backup.services.notifications.homeassistant.urlopen")
-    @patch.dict(os.environ, {
-        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
-        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+            "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+        },
+    )
     def test_send_handles_failure(self, mock_urlopen):
         from urllib.error import URLError
+
         from backup.services.notifications.homeassistant import HomeAssistantBackend
+
         mock_urlopen.side_effect = URLError("Connection refused")
         backend = HomeAssistantBackend()
         payload = NotificationPayload(
             event=NotifyEvent.BACKUP_FAILED,
-            instance_name="Test", instance_slug="test",
-            instance_color="#EF4444", title="Failed", message="Failed",
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#EF4444",
+            title="Failed",
+            message="Failed",
         )
         backend.send(self.config, payload)
 
@@ -626,6 +723,7 @@ class RestoreNotificationIntegrationTest(TempBackupDirMixin, TestCase):
     @patch("backup.services.notification_service.notify")
     def test_failed_restore_triggers_notification(self, mock_notify):
         from pathlib import Path
+
         # Corrupt the archive
         Path(self.backup_record.file_path).write_text("not a tar")
         result = restore_backup(self.backup_record.pk)
@@ -651,9 +749,13 @@ class RetentionNotificationIntegrationTest(TempBackupDirMixin, TestCase):
         from backup.services.retention_service import apply_retention
 
         # Create 2 backups with different checksums
-        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS + [{"id": "extra1", "type": "inject"}]))
+        self.flows_file.write_text(
+            json.dumps(SAMPLE_FLOWS + [{"id": "extra1", "type": "inject"}])
+        )
         create_backup(config=self.config, trigger="manual")
-        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS + [{"id": "extra2", "type": "debug"}]))
+        self.flows_file.write_text(
+            json.dumps(SAMPLE_FLOWS + [{"id": "extra2", "type": "debug"}])
+        )
         create_backup(config=self.config, trigger="manual")
 
         mock_notify.reset_mock()
@@ -667,6 +769,7 @@ class RetentionNotificationIntegrationTest(TempBackupDirMixin, TestCase):
     @patch("backup.services.notification_service.notify")
     def test_no_notification_when_nothing_deleted(self, mock_notify):
         from backup.services.retention_service import apply_retention
+
         create_backup(config=self.config, trigger="manual")
         mock_notify.reset_mock()
         result = apply_retention(self.config)
@@ -681,9 +784,7 @@ class ApiTestNotificationTest(TestCase):
 
     @patch.dict(os.environ, {}, clear=True)
     def test_no_backends_returns_400(self):
-        resp = self.client.post(
-            f"/api/instance/{self.config.slug}/notifications/test/"
-        )
+        resp = self.client.post(f"/api/instance/{self.config.slug}/notifications/test/")
         self.assertEqual(resp.status_code, 400)
         self.assertIn("No notification backends", resp.json()["message"])
 
@@ -694,9 +795,7 @@ class ApiTestNotificationTest(TestCase):
         mock_backend.name.return_value = "Discord"
         mock_get.return_value = [mock_backend]
 
-        resp = self.client.post(
-            f"/api/instance/{self.config.slug}/notifications/test/"
-        )
+        resp = self.client.post(f"/api/instance/{self.config.slug}/notifications/test/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")

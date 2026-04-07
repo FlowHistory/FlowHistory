@@ -84,9 +84,7 @@ class _FlowsHandler(FileSystemEventHandler):
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()
-            self._timer = threading.Timer(
-                debounce_seconds, self._on_debounce_complete
-            )
+            self._timer = threading.Timer(debounce_seconds, self._on_debounce_complete)
             self._timer.daemon = True
             self._timer.start()
 
@@ -182,7 +180,9 @@ def start_all_watchers():
 
     configs = list(
         NodeRedConfig.objects.filter(
-            is_enabled=True, source_type="local", watch_enabled=True,
+            is_enabled=True,
+            source_type="local",
+            watch_enabled=True,
         )
     )
     if not configs:
@@ -214,7 +214,9 @@ def start_all_watchers():
 
         logger.info(
             "File watcher started for %s on %s (watching %s)",
-            config.name, watch_dir, flows_path.name,
+            config.name,
+            watch_dir,
+            flows_path.name,
         )
         logger.info(
             "Watcher config [%s]: watch_enabled=%s, debounce=%ds, "
@@ -223,7 +225,9 @@ def start_all_watchers():
             config.watch_enabled,
             config.watch_debounce_seconds,
             flows_path.is_file(),
-            handler._last_known_checksum[:12] if handler._last_known_checksum else "None",
+            handler._last_known_checksum[:12]
+            if handler._last_known_checksum
+            else "None",
         )
 
     def _shutdown(signum, frame):

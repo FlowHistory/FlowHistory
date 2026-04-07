@@ -6,28 +6,69 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0001_initial'),
+        ("backup", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RestoreRecord',
+            name="RestoreRecord",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('status', models.CharField(choices=[('success', 'Success'), ('failed', 'Failed')], default='success', max_length=10)),
-                ('error_message', models.TextField(blank=True, default='')),
-                ('container_restarted', models.BooleanField(default=False)),
-                ('restart_message', models.CharField(blank=True, default='', max_length=500)),
-                ('files_restored', models.JSONField(blank=True, default=list)),
-                ('backup', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='restores', to='backup.backuprecord')),
-                ('config', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='restores', to='backup.noderedconfig')),
-                ('safety_backup', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='safety_for_restores', to='backup.backuprecord')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("success", "Success"), ("failed", "Failed")],
+                        default="success",
+                        max_length=10,
+                    ),
+                ),
+                ("error_message", models.TextField(blank=True, default="")),
+                ("container_restarted", models.BooleanField(default=False)),
+                (
+                    "restart_message",
+                    models.CharField(blank=True, default="", max_length=500),
+                ),
+                ("files_restored", models.JSONField(blank=True, default=list)),
+                (
+                    "backup",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="restores",
+                        to="backup.backuprecord",
+                    ),
+                ),
+                (
+                    "config",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="restores",
+                        to="backup.noderedconfig",
+                    ),
+                ),
+                (
+                    "safety_backup",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="safety_for_restores",
+                        to="backup.backuprecord",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
     ]

@@ -6,7 +6,10 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from backup.services.notifications.base import (
-    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+    EVENT_EMOJI,
+    NotificationBackend,
+    NotificationPayload,
+    NotifyEvent,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +27,6 @@ DISCORD_COLORS = {
 
 
 class DiscordBackend(NotificationBackend):
-
     def name(self):
         return "Discord"
 
@@ -51,14 +53,24 @@ class DiscordBackend(NotificationBackend):
             fields.append({"name": "File", "value": payload.filename, "inline": True})
         if payload.file_size is not None:
             size_kb = payload.file_size / 1024
-            fields.append({"name": "Size", "value": f"{size_kb:.1f} KB", "inline": True})
+            fields.append(
+                {"name": "Size", "value": f"{size_kb:.1f} KB", "inline": True}
+            )
         if payload.error:
-            fields.append({"name": "Error", "value": f"```{payload.error[:1000]}```", "inline": False})
+            fields.append(
+                {
+                    "name": "Error",
+                    "value": f"```{payload.error[:1000]}```",
+                    "inline": False,
+                }
+            )
         if fields:
             embed["fields"] = fields
 
         body = json.dumps({"embeds": [embed]}).encode()
-        req = Request(webhook_url, data=body, headers={"Content-Type": "application/json"})
+        req = Request(
+            webhook_url, data=body, headers={"Content-Type": "application/json"}
+        )
 
         try:
             with urlopen(req, timeout=TIMEOUT_SECONDS) as response:

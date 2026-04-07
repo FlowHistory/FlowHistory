@@ -131,7 +131,7 @@ def parse_flows(nodes):
 
 
 def get_tab_names(flows_path):
-    """Return a simple list of tab names from flows.json, for BackupRecord.tab_summary."""
+    """Return a list of tab names from flows.json for tab_summary."""
     parsed = parse_flows_file(flows_path)
     if parsed is None:
         return []

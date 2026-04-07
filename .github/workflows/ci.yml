@@ -11,7 +11,23 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/flowhistory
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run Ruff linter
+        run: uv run --group dev ruff check .
+
+      - name: Run Ruff formatter
+        run: uv run --group dev ruff format --check .
+
   tests:
+    needs: lint
     permissions:
       contents: read
     uses: ./.github/workflows/tests.yml

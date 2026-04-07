@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0004_backuprecord_is_pinned'),
+        ("backup", "0004_backuprecord_is_pinned"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='noderedconfig',
-            name='always_backup',
+            model_name="noderedconfig",
+            name="always_backup",
             field=models.BooleanField(default=False),
         ),
     ]
