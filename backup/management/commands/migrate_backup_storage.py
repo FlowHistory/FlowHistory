@@ -17,7 +17,8 @@ class Command(BaseCommand):
 
         # Find .tar.gz files directly in the root (not in subdirectories)
         root_archives = [
-            f for f in backup_root.iterdir()
+            f
+            for f in backup_root.iterdir()
             if f.is_file() and f.name.endswith(".tar.gz")
         ]
 
@@ -47,6 +48,4 @@ class Command(BaseCommand):
                 shutil.move(str(archive), str(orphan_dir / archive.name))
                 orphaned += 1
 
-        self.stdout.write(
-            f"Storage migration: {moved} moved, {orphaned} orphaned"
-        )
+        self.stdout.write(f"Storage migration: {moved} moved, {orphaned} orphaned")

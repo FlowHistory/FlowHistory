@@ -7,7 +7,9 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from backup.services.notifications.base import (
-    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+    EVENT_EMOJI,
+    NotificationBackend,
+    NotificationPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,12 +26,14 @@ def _escape(text):
 
 
 def _escape_pre(text):
-    """Escape characters inside a MarkdownV2 pre block (``` only ` and \\ need escaping)."""
+    """Escape chars inside a MarkdownV2 pre block.
+
+    Only ` and \\ need escaping.
+    """
     return str(text).replace("\\", "\\\\").replace("`", "\\`")
 
 
 class TelegramBackend(NotificationBackend):
-
     def name(self):
         return "Telegram"
 
@@ -46,7 +50,11 @@ class TelegramBackend(NotificationBackend):
             return
 
         emoji = EVENT_EMOJI.get(payload.event, "")
-        lines = [f"*{emoji} {_escape(payload.title)}*" if emoji else f"*{_escape(payload.title)}*"]
+        lines = [
+            f"*{emoji} {_escape(payload.title)}*"
+            if emoji
+            else f"*{_escape(payload.title)}*"
+        ]
         lines.append(_escape(payload.message))
 
         if payload.trigger:
@@ -63,11 +71,13 @@ class TelegramBackend(NotificationBackend):
 
         text = "\n".join(lines)
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        body = json.dumps({
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "MarkdownV2",
-        }).encode()
+        body = json.dumps(
+            {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "MarkdownV2",
+            }
+        ).encode()
         req = Request(url, data=body, headers={"Content-Type": "application/json"})
 
         try:

@@ -10,27 +10,65 @@ class NodeRedConfigAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug", "env_prefix")
     readonly_fields = ("slug", "created_at")
     fieldsets = (
-        ("Instance Identity", {
-            "fields": ("name", "slug", "color", "is_enabled", "created_at"),
-        }),
-        ("Source Configuration", {
-            "fields": ("source_type", "nodered_url", "env_prefix", "flows_path", "poll_interval_seconds"),
-        }),
-        ("Backup Schedule", {
-            "fields": ("backup_frequency", "backup_time", "backup_day", "schedule_enabled", "always_backup"),
-        }),
-        ("Retention Policy", {
-            "fields": ("max_backups", "max_age_days"),
-        }),
-        ("File Monitoring", {
-            "fields": ("watch_enabled", "watch_debounce_seconds"),
-        }),
-        ("Restore & Container", {
-            "fields": ("backup_credentials", "backup_settings", "restart_on_restore", "nodered_container_name"),
-        }),
-        ("Status", {
-            "fields": ("last_successful_backup", "last_backup_error"),
-        }),
+        (
+            "Instance Identity",
+            {
+                "fields": ("name", "slug", "color", "is_enabled", "created_at"),
+            },
+        ),
+        (
+            "Source Configuration",
+            {
+                "fields": (
+                    "source_type",
+                    "nodered_url",
+                    "env_prefix",
+                    "flows_path",
+                    "poll_interval_seconds",
+                ),
+            },
+        ),
+        (
+            "Backup Schedule",
+            {
+                "fields": (
+                    "backup_frequency",
+                    "backup_time",
+                    "backup_day",
+                    "schedule_enabled",
+                    "always_backup",
+                ),
+            },
+        ),
+        (
+            "Retention Policy",
+            {
+                "fields": ("max_backups", "max_age_days"),
+            },
+        ),
+        (
+            "File Monitoring",
+            {
+                "fields": ("watch_enabled", "watch_debounce_seconds"),
+            },
+        ),
+        (
+            "Restore & Container",
+            {
+                "fields": (
+                    "backup_credentials",
+                    "backup_settings",
+                    "restart_on_restore",
+                    "nodered_container_name",
+                ),
+            },
+        ),
+        (
+            "Status",
+            {
+                "fields": ("last_successful_backup", "last_backup_error"),
+            },
+        ),
     )
 
 

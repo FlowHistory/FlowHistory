@@ -8,10 +8,12 @@ RUN pip install uv && \
 
 FROM python:3.13-slim AS tailwind
 
+ARG TARGETARCH
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
-RUN curl -sL https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
+RUN ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "x64") && \
+    curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-${ARCH}" \
     -o /usr/local/bin/tailwindcss && chmod +x /usr/local/bin/tailwindcss
 COPY tailwind.config.js ./
 COPY backup/templates/ backup/templates/

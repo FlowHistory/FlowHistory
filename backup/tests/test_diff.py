@@ -21,45 +21,57 @@ class DiffTabSummariesTest(TestCase):
         return parse_flows(nodes)
 
     def test_tabs_added(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-            {"id": "t2", "type": "tab", "label": "B"},
-            {"id": "n2", "type": "debug", "z": "t2"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+                {"id": "t2", "type": "tab", "label": "B"},
+                {"id": "n2", "type": "debug", "z": "t2"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_added"], ["B"])
         self.assertEqual(diff["tabs_removed"], [])
         self.assertEqual(diff["tabs_modified"], [])
 
     def test_tabs_removed(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "t2", "type": "tab", "label": "B"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "t2", "type": "tab", "label": "B"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_removed"], ["B"])
         self.assertEqual(diff["tabs_added"], [])
 
     def test_tabs_modified_node_count_change(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-            {"id": "n2", "type": "debug", "z": "t1"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+                {"id": "n2", "type": "debug", "z": "t1"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertEqual(len(diff["tabs_modified"]), 1)
         self.assertEqual(diff["tabs_modified"][0]["nodes_before"], 1)
@@ -68,25 +80,31 @@ class DiffTabSummariesTest(TestCase):
         self.assertEqual(diff["tabs_modified"][0]["nodes_added"][0]["type"], "debug")
 
     def test_no_changes(self):
-        parsed = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "A"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
+        parsed = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "A"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
         diff = diff_tab_summaries(parsed, parsed)
         self.assertEqual(diff["tabs_added"], [])
         self.assertEqual(diff["tabs_removed"], [])
         self.assertEqual(diff["tabs_modified"], [])
 
     def test_node_added_in_tab(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-            {"id": "n2", "type": "function", "z": "t1", "name": "Process"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+                {"id": "n2", "type": "function", "z": "t1", "name": "Process"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]
         self.assertEqual(len(mod["nodes_added"]), 1)
@@ -94,15 +112,19 @@ class DiffTabSummariesTest(TestCase):
         self.assertEqual(mod["nodes_added"][0]["name"], "Process")
 
     def test_node_removed_from_tab(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-            {"id": "n2", "type": "debug", "z": "t1", "name": "Logger"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+                {"id": "n2", "type": "debug", "z": "t1", "name": "Logger"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]
         self.assertEqual(len(mod["nodes_removed"]), 1)
@@ -110,14 +132,30 @@ class DiffTabSummariesTest(TestCase):
         self.assertEqual(mod["nodes_removed"][0]["name"], "Logger")
 
     def test_node_modified_detects_field_change(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "function", "z": "t1", "name": "Old Name", "func": "return msg;"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "function", "z": "t1", "name": "New Name", "func": "msg.payload = 1; return msg;"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {
+                    "id": "n1",
+                    "type": "function",
+                    "z": "t1",
+                    "name": "Old Name",
+                    "func": "return msg;",
+                },
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {
+                    "id": "n1",
+                    "type": "function",
+                    "z": "t1",
+                    "name": "New Name",
+                    "func": "msg.payload = 1; return msg;",
+                },
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]
         self.assertEqual(len(mod["nodes_modified"]), 1)
@@ -126,26 +164,34 @@ class DiffTabSummariesTest(TestCase):
         self.assertIn("name", mod["nodes_modified"][0]["changed_fields"])
 
     def test_node_position_change_ignored(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1", "x": 100, "y": 200},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1", "x": 300, "y": 400},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1", "x": 100, "y": 200},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1", "x": 300, "y": 400},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_modified"], [])
 
     def test_node_with_group_shows_group_name(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "g1", "type": "group", "name": "Sensors", "z": "t1"},
-            {"id": "n1", "type": "inject", "z": "t1", "g": "g1", "name": "Trigger"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "g1", "type": "group", "name": "Sensors", "z": "t1"},
+                {"id": "n1", "type": "inject", "z": "t1", "g": "g1", "name": "Trigger"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]
         # Find the inject node (not the group itself)
@@ -163,14 +209,23 @@ class DiffTabSummariesTest(TestCase):
         self.assertEqual(diff["tabs_modified"][0]["nodes_after"], 7)
 
     def test_subflow_node_modified(self):
-        prev = self._make_parsed([
-            {"id": "sf1", "type": "subflow", "name": "My Subflow"},
-            {"id": "n1", "type": "function", "z": "sf1", "func": "return msg;"},
-        ])
-        curr = self._make_parsed([
-            {"id": "sf1", "type": "subflow", "name": "My Subflow"},
-            {"id": "n1", "type": "function", "z": "sf1", "func": "msg.payload = 1;\nreturn msg;"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "sf1", "type": "subflow", "name": "My Subflow"},
+                {"id": "n1", "type": "function", "z": "sf1", "func": "return msg;"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "sf1", "type": "subflow", "name": "My Subflow"},
+                {
+                    "id": "n1",
+                    "type": "function",
+                    "z": "sf1",
+                    "func": "msg.payload = 1;\nreturn msg;",
+                },
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertEqual(diff["tabs_modified"], [])
         self.assertEqual(len(diff["subflows_modified"]), 1)
@@ -179,27 +234,45 @@ class DiffTabSummariesTest(TestCase):
         self.assertIn("func", mod_node["changed_fields"])
 
     def test_subflow_added_removed(self):
-        prev = self._make_parsed([
-            {"id": "sf1", "type": "subflow", "name": "Old"},
-            {"id": "n1", "type": "inject", "z": "sf1"},
-        ])
-        curr = self._make_parsed([
-            {"id": "sf2", "type": "subflow", "name": "New"},
-            {"id": "n2", "type": "debug", "z": "sf2"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "sf1", "type": "subflow", "name": "Old"},
+                {"id": "n1", "type": "inject", "z": "sf1"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "sf2", "type": "subflow", "name": "New"},
+                {"id": "n2", "type": "debug", "z": "sf2"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         self.assertIn("Old", diff["subflows_removed"])
         self.assertIn("New", diff["subflows_added"])
 
     def test_field_diffs_unified_format(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "function", "z": "t1", "func": "line1\nline2\nline3"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "function", "z": "t1", "func": "line1\nchanged\nline3"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {
+                    "id": "n1",
+                    "type": "function",
+                    "z": "t1",
+                    "func": "line1\nline2\nline3",
+                },
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {
+                    "id": "n1",
+                    "type": "function",
+                    "z": "t1",
+                    "func": "line1\nchanged\nline3",
+                },
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]["nodes_modified"][0]
         self.assertIn("field_diffs", mod)
@@ -208,14 +281,18 @@ class DiffTabSummariesTest(TestCase):
         self.assertIn("+changed", func_diff["diff"])
 
     def test_field_diffs_simple_value(self):
-        prev = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1", "repeat": "5"},
-        ])
-        curr = self._make_parsed([
-            {"id": "t1", "type": "tab", "label": "Home"},
-            {"id": "n1", "type": "inject", "z": "t1", "repeat": "10"},
-        ])
+        prev = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1", "repeat": "5"},
+            ]
+        )
+        curr = self._make_parsed(
+            [
+                {"id": "t1", "type": "tab", "label": "Home"},
+                {"id": "n1", "type": "inject", "z": "t1", "repeat": "10"},
+            ]
+        )
         diff = diff_tab_summaries(prev, curr)
         mod = diff["tabs_modified"][0]["nodes_modified"][0]
         fd = [d for d in mod["field_diffs"] if d["field"] == "repeat"][0]
@@ -286,11 +363,15 @@ class DiffViewTest(TempBackupDirMixin, TestCase):
         self.assertContains(resp, "New Tab")
 
     def test_diff_compare_returns_200(self):
-        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/"
+        )
         self.assertEqual(resp.status_code, 200)
 
     def test_diff_compare_shows_changes(self):
-        resp = self.client.get(f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/")
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/diff/{self.backup_b.pk}/{self.backup_a.pk}/"
+        )
         self.assertContains(resp, "New Tab")
 
     def test_diff_first_backup_no_previous(self):

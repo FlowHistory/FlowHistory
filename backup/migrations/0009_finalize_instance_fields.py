@@ -5,7 +5,6 @@ from django.utils import timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("backup", "0008_populate_instance_fields"),
     ]

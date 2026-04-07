@@ -5,35 +5,54 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0009_finalize_instance_fields'),
+        ("backup", "0009_finalize_instance_fields"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='noderedconfig',
-            name='notify_enabled',
+            model_name="noderedconfig",
+            name="notify_enabled",
             field=models.BooleanField(default=True),
         ),
         migrations.AddField(
-            model_name='noderedconfig',
-            name='notify_events',
-            field=models.CharField(blank=True, default='', help_text='Comma-separated events, "all", "none", or blank for defaults.', max_length=200),
+            model_name="noderedconfig",
+            name="notify_events",
+            field=models.CharField(
+                blank=True,
+                default="",
+                help_text=(
+                    'Comma-separated events, "all", "none", or blank for defaults.'
+                ),
+                max_length=200,
+            ),
         ),
         migrations.AlterField(
-            model_name='noderedconfig',
-            name='color',
-            field=models.CharField(blank=True, default='', max_length=7, validators=[django.core.validators.RegexValidator('^#[0-9A-Fa-f]{6}$', 'Enter a valid hex color.')]),
+            model_name="noderedconfig",
+            name="color",
+            field=models.CharField(
+                blank=True,
+                default="",
+                max_length=7,
+                validators=[
+                    django.core.validators.RegexValidator(
+                        "^#[0-9A-Fa-f]{6}$", "Enter a valid hex color."
+                    )
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='noderedconfig',
-            name='max_age_days',
-            field=models.PositiveIntegerField(default=30, validators=[django.core.validators.MinValueValidator(1)]),
+            model_name="noderedconfig",
+            name="max_age_days",
+            field=models.PositiveIntegerField(
+                default=30, validators=[django.core.validators.MinValueValidator(1)]
+            ),
         ),
         migrations.AlterField(
-            model_name='noderedconfig',
-            name='max_backups',
-            field=models.PositiveIntegerField(default=20, validators=[django.core.validators.MinValueValidator(1)]),
+            model_name="noderedconfig",
+            name="max_backups",
+            field=models.PositiveIntegerField(
+                default=20, validators=[django.core.validators.MinValueValidator(1)]
+            ),
         ),
     ]

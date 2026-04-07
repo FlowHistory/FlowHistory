@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0002_restore_record'),
+        ("backup", "0002_restore_record"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='backuprecord',
-            name='notes',
-            field=models.TextField(blank=True, default=''),
+            model_name="backuprecord",
+            name="notes",
+            field=models.TextField(blank=True, default=""),
         ),
     ]

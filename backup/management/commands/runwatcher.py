@@ -10,7 +10,10 @@ from backup.services.watcher_service import start_all_watchers
 
 
 class Command(BaseCommand):
-    help = "Start file watchers for local instances and remote pollers for remote instances"
+    help = (
+        "Start file watchers for local instances"
+        " and remote pollers for remote instances"
+    )
 
     def handle(self, *args, **options):
         stop_event = threading.Event()
@@ -25,7 +28,9 @@ class Command(BaseCommand):
         from backup.models import NodeRedConfig
 
         has_local = NodeRedConfig.objects.filter(
-            is_enabled=True, source_type="local", watch_enabled=True,
+            is_enabled=True,
+            source_type="local",
+            watch_enabled=True,
         ).exists()
 
         if has_local:

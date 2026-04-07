@@ -10,7 +10,9 @@ from backup.services.discovery_service import discover_instances_from_env
 class DiscoveryServiceTest(TestCase):
     def _clean_env(self, env_dict):
         """Return env_dict with only FLOWHISTORY_* keys removed from os.environ."""
-        clean = {k: v for k, v in os.environ.items() if not k.startswith("FLOWHISTORY_")}
+        clean = {
+            k: v for k, v in os.environ.items() if not k.startswith("FLOWHISTORY_")
+        }
         clean.update(env_dict)
         return clean
 
@@ -24,10 +26,12 @@ class DiscoveryServiceTest(TestCase):
         self.assertEqual(config.nodered_url, "http://192.168.1.50:1880")
 
     def test_discover_local_instance(self):
-        env = self._clean_env({
-            "FLOWHISTORY_DEV_FLOWS_PATH": "/data/flows.json",
-            "FLOWHISTORY_DEV_NAME": "Dev Box",
-        })
+        env = self._clean_env(
+            {
+                "FLOWHISTORY_DEV_FLOWS_PATH": "/data/flows.json",
+                "FLOWHISTORY_DEV_NAME": "Dev Box",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
         self.assertIn("DEV", result["created"])
@@ -46,13 +50,17 @@ class DiscoveryServiceTest(TestCase):
 
     def test_force_updates_existing(self):
         config = NodeRedConfig.objects.create(
-            name="Old Name", env_prefix="PROD", source_type="remote",
+            name="Old Name",
+            env_prefix="PROD",
+            source_type="remote",
             nodered_url="http://old:1880",
         )
-        env = self._clean_env({
-            "FLOWHISTORY_PROD_URL": "http://new:1880",
-            "FLOWHISTORY_PROD_NAME": "New Name",
-        })
+        env = self._clean_env(
+            {
+                "FLOWHISTORY_PROD_URL": "http://new:1880",
+                "FLOWHISTORY_PROD_NAME": "New Name",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env(force=True)
         self.assertIn("PROD", result["updated"])
@@ -69,10 +77,12 @@ class DiscoveryServiceTest(TestCase):
         self.assertEqual(result["updated"], [])
 
     def test_both_url_and_flows_path_prefers_remote(self):
-        env = self._clean_env({
-            "FLOWHISTORY_DUAL_URL": "http://example.com:1880",
-            "FLOWHISTORY_DUAL_FLOWS_PATH": "/data/flows.json",
-        })
+        env = self._clean_env(
+            {
+                "FLOWHISTORY_DUAL_URL": "http://example.com:1880",
+                "FLOWHISTORY_DUAL_FLOWS_PATH": "/data/flows.json",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
             result = discover_instances_from_env()
         self.assertIn("DUAL", result["created"])
@@ -80,16 +90,18 @@ class DiscoveryServiceTest(TestCase):
         self.assertEqual(config.source_type, "remote")
 
     def test_optional_fields_applied(self):
-        env = self._clean_env({
-            "FLOWHISTORY_FULL_URL": "http://example.com:1880",
-            "FLOWHISTORY_FULL_NAME": "Full Config",
-            "FLOWHISTORY_FULL_SCHEDULE": "weekly",
-            "FLOWHISTORY_FULL_TIME": "04:30",
-            "FLOWHISTORY_FULL_MAX_BACKUPS": "50",
-            "FLOWHISTORY_FULL_ALWAYS_BACKUP": "true",
-        })
+        env = self._clean_env(
+            {
+                "FLOWHISTORY_FULL_URL": "http://example.com:1880",
+                "FLOWHISTORY_FULL_NAME": "Full Config",
+                "FLOWHISTORY_FULL_SCHEDULE": "weekly",
+                "FLOWHISTORY_FULL_TIME": "04:30",
+                "FLOWHISTORY_FULL_MAX_BACKUPS": "50",
+                "FLOWHISTORY_FULL_ALWAYS_BACKUP": "true",
+            }
+        )
         with patch.dict("os.environ", env, clear=True):
-            result = discover_instances_from_env()
+            discover_instances_from_env()
         config = NodeRedConfig.objects.get(env_prefix="FULL")
         self.assertEqual(config.backup_frequency, "weekly")
         self.assertEqual(config.max_backups, 50)

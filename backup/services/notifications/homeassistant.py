@@ -6,7 +6,9 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from backup.services.notifications.base import (
-    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+    EVENT_EMOJI,
+    NotificationBackend,
+    NotificationPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,6 @@ TIMEOUT_SECONDS = 10
 
 
 class HomeAssistantBackend(NotificationBackend):
-
     def name(self):
         return "Home Assistant"
 
@@ -48,11 +49,13 @@ class HomeAssistantBackend(NotificationBackend):
         notification_id = f"flowhistory_{payload.instance_slug}_{payload.event}"
 
         url = f"{ha_url.rstrip('/')}/api/services/persistent_notification/create"
-        body = json.dumps({
-            "title": title,
-            "message": "\n".join(lines),
-            "notification_id": notification_id,
-        }).encode()
+        body = json.dumps(
+            {
+                "title": title,
+                "message": "\n".join(lines),
+                "notification_id": notification_id,
+            }
+        ).encode()
         req = Request(
             url,
             data=body,

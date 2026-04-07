@@ -36,16 +36,26 @@ def diff_tab_summaries(prev, current):
     prev_tabs = {t["id"]: t for t in prev.get("tabs", [])}
     curr_tabs = {t["id"]: t for t in current.get("tabs", [])}
     tabs_result = _diff_container_set(
-        prev_tabs, curr_tabs, "label", prev_nodes, curr_nodes,
-        prev_groups, curr_groups,
+        prev_tabs,
+        curr_tabs,
+        "label",
+        prev_nodes,
+        curr_nodes,
+        prev_groups,
+        curr_groups,
     )
 
     # Diff subflows
     prev_sfs = {s["id"]: s for s in prev.get("subflows", [])}
     curr_sfs = {s["id"]: s for s in current.get("subflows", [])}
     sfs_result = _diff_container_set(
-        prev_sfs, curr_sfs, "name", prev_nodes, curr_nodes,
-        prev_groups, curr_groups,
+        prev_sfs,
+        curr_sfs,
+        "name",
+        prev_nodes,
+        curr_nodes,
+        prev_groups,
+        curr_groups,
     )
 
     return {
@@ -58,8 +68,9 @@ def diff_tab_summaries(prev, current):
     }
 
 
-def _diff_container_set(prev_map, curr_map, label_key, prev_nodes, curr_nodes,
-                        prev_groups, curr_groups):
+def _diff_container_set(
+    prev_map, curr_map, label_key, prev_nodes, curr_nodes, prev_groups, curr_groups
+):
     """Diff a set of containers (tabs or subflows)."""
     prev_ids = set(prev_map.keys())
     curr_ids = set(curr_map.keys())
@@ -71,7 +82,11 @@ def _diff_container_set(prev_map, curr_map, label_key, prev_nodes, curr_nodes,
     for cid in prev_ids & curr_ids:
         if prev_nodes or curr_nodes:
             container_diff = _diff_container_nodes(
-                cid, prev_nodes, curr_nodes, prev_groups, curr_groups,
+                cid,
+                prev_nodes,
+                curr_nodes,
+                prev_groups,
+                curr_groups,
             )
         else:
             container_diff = _diff_tab_counts(prev_map[cid], curr_map[cid])
@@ -96,8 +111,9 @@ def _diff_tab_counts(prev_tab, curr_tab):
     return None
 
 
-def _diff_container_nodes(container_id, prev_nodes, curr_nodes,
-                          prev_groups, curr_groups):
+def _diff_container_nodes(
+    container_id, prev_nodes, curr_nodes, prev_groups, curr_groups
+):
     """Compare individual nodes within a tab or subflow."""
     prev_tab = {nid: n for nid, n in prev_nodes.items() if n["z"] == container_id}
     curr_tab = {nid: n for nid, n in curr_nodes.items() if n["z"] == container_id}
@@ -178,13 +194,15 @@ def _format_value_diff(field, old, new):
 
     # Use unified diff for multi-line strings
     if "\n" in old_str or "\n" in new_str:
-        lines = list(difflib.unified_diff(
-            old_str.splitlines(keepends=True),
-            new_str.splitlines(keepends=True),
-            fromfile=f"a/{field}",
-            tofile=f"b/{field}",
-            lineterm="",
-        ))
+        lines = list(
+            difflib.unified_diff(
+                old_str.splitlines(keepends=True),
+                new_str.splitlines(keepends=True),
+                fromfile=f"a/{field}",
+                tofile=f"b/{field}",
+                lineterm="",
+            )
+        )
         if lines:
             return "\n".join(lines)
 
