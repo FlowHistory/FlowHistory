@@ -348,6 +348,34 @@ function bulkDownload() {
   });
 }
 
+// Test notification
+function testNotification() {
+  var btn = document.getElementById('btn-test-notification');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  fetch(getApiBase() + 'notifications/test/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    btn.disabled = false;
+    btn.textContent = 'Send Test Notification';
+    if (data.status === 'success') {
+      showBanner('Test notification sent to: ' + data.backends.join(', '), 'success');
+    } else if (data.status === 'partial') {
+      showBanner('Sent to ' + data.backends.join(', ') + '. Errors: ' + data.errors.join(', '), 'warning');
+    } else {
+      showBanner(data.message || data.errors.join(', '));
+    }
+  })
+  .catch(function () {
+    btn.disabled = false;
+    btn.textContent = 'Send Test Notification';
+    showBanner('Request failed');
+  });
+}
+
 // Restore backup
 function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {

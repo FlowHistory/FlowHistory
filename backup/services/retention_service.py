@@ -73,12 +73,33 @@ def apply_retention(config):
             deleted_by_age,
             deleted_by_count,
         )
+        _notify_retention(config, deleted_by_age, deleted_by_count)
 
     return {
         "deleted_by_count": deleted_by_count,
         "deleted_by_age": deleted_by_age,
         "errors": errors,
     }
+
+
+def _notify_retention(config, deleted_by_age, deleted_by_count):
+    """Send notification for retention cleanup."""
+    try:
+        from backup.services.notification_service import notify
+        from backup.services.notifications.base import NotificationPayload, NotifyEvent
+
+        total = deleted_by_age + deleted_by_count
+        payload = NotificationPayload(
+            event=NotifyEvent.RETENTION_CLEANUP,
+            instance_name=config.name,
+            instance_slug=config.slug,
+            instance_color=config.color,
+            title=f"Retention cleanup \u2014 {config.name}",
+            message=f"Deleted {total} backup{'s' if total != 1 else ''} ({deleted_by_age} by age, {deleted_by_count} by count).",
+        )
+        notify(config, payload)
+    except Exception:
+        logger.warning("Notification failed after retention cleanup", exc_info=True)
 
 
 def _delete_backup(record):

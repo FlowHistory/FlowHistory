@@ -28,12 +28,14 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0009](0009-label-delete-endpoints.md) | Backup Label and Delete Endpoints | **Implemented** |
 | [0010](0010-diff-viewer-page.md) | Diff Viewer Page | **Implemented** |
 | [0011](0011-error-routes.md) | Error Routes (404/500) with Redirect and Flash Messages | **Implemented** |
-| [0012](0012-dashboard-actions-dropdown.md) | Dashboard Actions Dropdown | **Proposed** |
-| [0013](0013-multi-instance-support.md) | Multi-Instance Node-RED Support | **Proposed** |
+| [0012](0012-dashboard-actions-dropdown.md) | Dashboard Actions Dropdown | **Implemented** |
+| [0013](0013-multi-instance-support.md) | Multi-Instance Node-RED Support | **Implemented** |
 | [0014](0014-hybrid-file-watcher.md) | Hybrid File Watcher (inotify + Checksum Polling) | **Implemented** |
 | [0015](0015-backup-notes-annotations.md) | Backup Notes/Annotations | **Implemented** |
 | [0016](0016-snapshot-pinning.md) | Snapshot Pinning | **Implemented** |
-| [0017](0017-bulk-actions.md) | Bulk Actions | **Proposed** |
-| [0018](0018-always-backup-option.md) | Always Backup Option | **Proposed** |
-| [0019](0019-tooltip-component.md) | Tooltip Component for Settings | **Proposed** |
-| [0020](0020-simplify-defaults-and-env-vars.md) | Simplify Default Settings and Reduce Env Vars | **Proposed** |
+| [0017](0017-bulk-actions.md) | Bulk Actions | **Implemented** |
+| [0018](0018-always-backup-option.md) | Always Backup Option | **Implemented** |
+| [0019](0019-tooltip-component.md) | Tooltip Component for Settings | **Implemented** |
+| [0020](0020-simplify-defaults-and-env-vars.md) | Simplify Default Settings and Reduce Env Vars | **Implemented** |
+| [0021](0021-instance-credential-storage.md) | Instance Credential Storage | **Implemented** |
+| [0022](0022-notification-system.md) | Notification System | **Accepted** |

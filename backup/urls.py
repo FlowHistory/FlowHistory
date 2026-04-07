@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/instance/<slug:slug>/bulk/", views.api_bulk_action, name="api_bulk_action"),
     path("api/instance/<slug:slug>/restore/<int:backup_id>/", views.api_restore_backup, name="api_restore_backup"),
     path("api/instance/<slug:slug>/test-connection/", views.api_test_connection, name="api_test_connection"),
+    path("api/instance/<slug:slug>/notifications/test/", views.api_test_notification, name="api_test_notification"),
 
     # Non-instance routes
     path("health/", views.health_check, name="health_check"),

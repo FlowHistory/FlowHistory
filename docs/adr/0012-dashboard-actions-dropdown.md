@@ -1,7 +1,7 @@
 # ADR 0012: Dashboard Actions Dropdown
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 
