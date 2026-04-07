@@ -1,5 +1,6 @@
 from .api import (
     api_bulk_action,
+    api_clear_error,
     api_create_backup,
     api_restore_backup,
     api_set_label,
@@ -20,6 +21,7 @@ from .pages import (
 
 __all__ = [
     "api_bulk_action",
+    "api_clear_error",
     "api_create_backup",
     "api_restore_backup",
     "api_set_label",

@@ -10,6 +10,38 @@ from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 
 
 @override_settings(REQUIRE_AUTH=False)
+class ApiClearErrorTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            pk=1,
+            flows_path=str(self.flows_file),
+            last_backup_error="flows.json not found at /nodered-data/flows.json",
+        )
+
+    def test_clear_error(self):
+        resp = self.client.post(f"/api/instance/{self.config.slug}/clear-error/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "success")
+        self.config.refresh_from_db()
+        self.assertEqual(self.config.last_backup_error, "")
+
+    def test_clear_already_empty_error(self):
+        self.config.last_backup_error = ""
+        self.config.save()
+        resp = self.client.post(f"/api/instance/{self.config.slug}/clear-error/")
+        self.assertEqual(resp.status_code, 200)
+        self.config.refresh_from_db()
+        self.assertEqual(self.config.last_backup_error, "")
+
+    def test_get_not_allowed(self):
+        resp = self.client.get(f"/api/instance/{self.config.slug}/clear-error/")
+        self.assertEqual(resp.status_code, 405)
+
+
+@override_settings(REQUIRE_AUTH=False)
 class ApiSetLabelTest(TempBackupDirMixin, TestCase):
     def setUp(self):
         super().setUp()

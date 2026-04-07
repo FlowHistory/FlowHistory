@@ -259,6 +259,15 @@ def api_bulk_action(request, slug):
 
 
 @require_POST
+def api_clear_error(request, slug):
+    """Clear the last_backup_error for an instance."""
+    config = _get_config(slug)
+    config.last_backup_error = ""
+    config.save(update_fields=["last_backup_error"])
+    return JsonResponse({"status": "success"})
+
+
+@require_POST
 def api_test_notification(request, slug):
     """Send a test notification to all configured backends for this instance."""
     from ..services.notification_service import get_configured_backends_objects

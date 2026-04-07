@@ -11,12 +11,13 @@
     {% include "backup/components/_badge.html" with text="Remote" variant="info" %}
     {% endif %}
   </div>
-  <button class="btn-primary" id="btn-backup" data-url="{% url 'api_create_backup' config.slug %}" onclick="createBackup()" {% if config.last_backup_error %}disabled title="Fix the error before creating backups"{% endif %}>Create Backup</button>
+  <button class="btn-primary" id="btn-backup" data-url="{% url 'api_create_backup' config.slug %}" onclick="createBackup()">Create Backup</button>
 </div>
 
 {% if config.last_backup_error %}
-<div class="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200" role="alert">
+<div id="error-banner" class="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200" role="alert">
   <span>{{ config.last_backup_error }}</span>
+  <button type="button" onclick="dismissError()" class="ml-4 text-red-600 hover:text-red-800 dark:text-red-300 dark:hover:text-red-100" title="Dismiss" aria-label="Dismiss error">&times;</button>
 </div>
 {% endif %}
 

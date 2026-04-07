@@ -70,6 +70,11 @@ urlpatterns = [
         name="api_restore_backup",
     ),
     path(
+        "api/instance/<slug:slug>/clear-error/",
+        views.api_clear_error,
+        name="api_clear_error",
+    ),
+    path(
         "api/instance/<slug:slug>/test-connection/",
         views.api_test_connection,
         name="api_test_connection",
