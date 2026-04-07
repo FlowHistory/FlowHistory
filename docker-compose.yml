@@ -5,17 +5,10 @@ services:
     ports:
       - "9472:8000"
     volumes:
-      - ~/docker/volumes/nodered/backups/data:/app/data
-      - ~/docker/volumes/nodered/backups/backups:/app/backups
-      - /media/cubxi/docker/volumes/nodered/data:/nodered-data
-      - /var/run/docker.sock:/var/run/docker.sock  # Required for container restart on restore
+      - ./data:/app/data
+      - ./backups:/app/backups
+      # - /path/to/nodered/data:/nodered-data
+      # - /var/run/docker.sock:/var/run/docker.sock  # Required for container restart on restore
     env_file:
       - .env
     restart: unless-stopped
-    networks:
-      - automation_network
-
-networks:
-  automation_network:
-    external: true
-    name: docker_automation_network

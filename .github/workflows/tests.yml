@@ -21,7 +21,7 @@ jobs:
         run: docker compose build flowhistory
 
       - name: Run Django tests
-        run: docker compose run --rm --no-deps flowhistory python manage.py test backup -v2
+        run: docker compose run --rm --no-deps --entrypoint python flowhistory manage.py test backup -v2
 
       - name: Cleanup
         if: always()
