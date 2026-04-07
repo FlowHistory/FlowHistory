@@ -5,27 +5,13 @@ import logging
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from backup.services.notifications.base import NotificationBackend, NotificationPayload, NotifyEvent
+from backup.services.notifications.base import (
+    EVENT_COLORS, EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 10
-
-EVENT_COLORS = {
-    NotifyEvent.BACKUP_SUCCESS: "#10B981",
-    NotifyEvent.BACKUP_FAILED: "#EF4444",
-    NotifyEvent.RESTORE_SUCCESS: "#3B82F6",
-    NotifyEvent.RESTORE_FAILED: "#EF4444",
-    NotifyEvent.RETENTION_CLEANUP: "#F59E0B",
-}
-
-EVENT_EMOJI = {
-    NotifyEvent.BACKUP_SUCCESS: "\u2705",
-    NotifyEvent.BACKUP_FAILED: "\u274c",
-    NotifyEvent.RESTORE_SUCCESS: "\u2705",
-    NotifyEvent.RESTORE_FAILED: "\u274c",
-    NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",
-}
 
 
 class SlackBackend(NotificationBackend):

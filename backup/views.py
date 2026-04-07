@@ -130,27 +130,30 @@ def instance_settings(request, slug):
         )
         return inst, glob
 
-    discord_instance, discord_global = _check_backend("DISCORD_WEBHOOK_URL")
-    slack_instance, slack_global = _check_backend("SLACK_WEBHOOK_URL")
-    telegram_instance, telegram_global = _check_backend("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
-    pushbullet_instance, pushbullet_global = _check_backend("PUSHBULLET_API_KEY")
-    ha_instance, ha_global = _check_backend("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN")
+    notify_backend_status = []
+    _backends = [
+        ("Discord", "Discord webhook URL", ("DISCORD_WEBHOOK_URL",)),
+        ("Slack", "Slack incoming webhook URL", ("SLACK_WEBHOOK_URL",)),
+        ("Telegram", "Telegram bot token and chat ID", ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")),
+        ("Pushbullet", "Pushbullet API key", ("PUSHBULLET_API_KEY",)),
+        ("Home Assistant", "Home Assistant URL and long-lived access token", ("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN")),
+    ]
+    for label, description, env_fields in _backends:
+        inst_vars = " and ".join(f"FLOWHISTORY_{prefix}_{f}" for f in env_fields)
+        global_vars = " and ".join(f"FLOWHISTORY_NOTIFY_{f}" for f in env_fields)
+        tooltip = f"{description}. Set per-instance via {inst_vars}, or globally via {global_vars}."
+        inst, glob = _check_backend(*env_fields)
+        notify_backend_status.append({
+            "label": label, "tooltip": tooltip,
+            "is_instance": inst, "is_global": glob,
+        })
 
     return render(request, "backup/settings.html", {
         "config": config,
         "has_credentials": bool(username),
         "defaults": NodeRedConfig.get_field_defaults(),
         "notification_backends": notification_backends,
-        "discord_instance": discord_instance,
-        "discord_global": discord_global,
-        "slack_instance": slack_instance,
-        "slack_global": slack_global,
-        "telegram_instance": telegram_instance,
-        "telegram_global": telegram_global,
-        "pushbullet_instance": pushbullet_instance,
-        "pushbullet_global": pushbullet_global,
-        "ha_instance": ha_instance,
-        "ha_global": ha_global,
+        "notify_backend_status": notify_backend_status,
         "has_any_notification_backend": bool(notification_backends),
         "breadcrumb_items": [
             {"label": "Dashboard", "url": reverse("dashboard")},

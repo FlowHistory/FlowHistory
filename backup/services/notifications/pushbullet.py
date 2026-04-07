@@ -5,19 +5,13 @@ import logging
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from backup.services.notifications.base import NotificationBackend, NotificationPayload, NotifyEvent
+from backup.services.notifications.base import (
+    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 10
-
-EVENT_EMOJI = {
-    NotifyEvent.BACKUP_SUCCESS: "\u2705",
-    NotifyEvent.BACKUP_FAILED: "\u274c",
-    NotifyEvent.RESTORE_SUCCESS: "\u2705",
-    NotifyEvent.RESTORE_FAILED: "\u274c",
-    NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",
-}
 
 
 class PushbulletBackend(NotificationBackend):

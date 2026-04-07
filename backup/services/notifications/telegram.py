@@ -6,19 +6,13 @@ import re
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from backup.services.notifications.base import NotificationBackend, NotificationPayload, NotifyEvent
+from backup.services.notifications.base import (
+    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 10
-
-EVENT_EMOJI = {
-    NotifyEvent.BACKUP_SUCCESS: "\u2705",
-    NotifyEvent.BACKUP_FAILED: "\u274c",
-    NotifyEvent.RESTORE_SUCCESS: "\u2705",
-    NotifyEvent.RESTORE_FAILED: "\u274c",
-    NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",
-}
 
 # Characters that must be escaped in MarkdownV2
 _ESCAPE_RE = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\])")
@@ -27,6 +21,11 @@ _ESCAPE_RE = re.compile(r"([_*\[\]()~`>#+\-=|{}.!\\])")
 def _escape(text):
     """Escape special characters for Telegram MarkdownV2."""
     return _ESCAPE_RE.sub(r"\\\1", str(text))
+
+
+def _escape_pre(text):
+    """Escape characters inside a MarkdownV2 pre block (``` only ` and \\ need escaping)."""
+    return str(text).replace("\\", "\\\\").replace("`", "\\`")
 
 
 class TelegramBackend(NotificationBackend):
@@ -58,7 +57,7 @@ class TelegramBackend(NotificationBackend):
             size_kb = payload.file_size / 1024
             lines.append(f"*Size:* {_escape(f'{size_kb:.1f} KB')}")
         if payload.error:
-            lines.append(f"```\n{payload.error[:1000]}\n```")
+            lines.append(f"```\n{_escape_pre(payload.error[:1000])}\n```")
 
         lines.append(f"\n_{_escape(f'FlowHistory \u2014 {payload.instance_name}')}_")
 

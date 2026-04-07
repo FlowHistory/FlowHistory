@@ -1,0 +1,14 @@
+<tr>
+  <th class="th-label">{{ backend.label }} {% include "backup/components/_tooltip.html" with text=backend.tooltip %}</th>
+  <td class="px-4 py-2">
+    {% if backend.is_instance %}
+      <span class="text-green-600 dark:text-green-400">Configured</span>
+      <span class="ml-1 text-xs text-gray-400">(instance)</span>
+    {% elif backend.is_global %}
+      <span class="text-green-600 dark:text-green-400">Configured</span>
+      <span class="ml-1 text-xs text-gray-400">(global)</span>
+    {% else %}
+      <span class="text-gray-400">Not configured</span>
+    {% endif %}
+  </td>
+</tr>

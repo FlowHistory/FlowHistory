@@ -41,8 +41,45 @@ FLOWHISTORY_PREFIX_ALWAYS_BACKUP=false
 FLOWHISTORY_PREFIX_MAX_BACKUPS=20
 FLOWHISTORY_PREFIX_MAX_AGE_DAYS=30
 
+# Appearance
+FLOWHISTORY_PREFIX_COLOR=#3B82F6         # hex color for UI accent
+
 # Remote polling
-FLOWHISTORY_PREFIX_POLL_INTERVAL=60      # seconds</code></pre>
+FLOWHISTORY_PREFIX_POLL_INTERVAL=60      # seconds
+
+# Local-only options
+FLOWHISTORY_PREFIX_WATCH=true            # watch for file changes (inotify)
+FLOWHISTORY_PREFIX_DEBOUNCE=5            # seconds to wait before backup after change
+FLOWHISTORY_PREFIX_BACKUP_CREDENTIALS=false  # include flows_cred.json
+FLOWHISTORY_PREFIX_BACKUP_SETTINGS=false     # include settings.js
+FLOWHISTORY_PREFIX_RESTART_ON_RESTORE=false  # restart container after restore
+FLOWHISTORY_PREFIX_CONTAINER_NAME=nodered    # Docker container name for restart</code></pre>
+  {% include "backup/components/_card_section_end.html" %}
+
+  {% include "backup/components/_card_section_start.html" with title="Notifications" extra_class="mb-3" %}
+    <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+      Per-instance overrides. Global defaults use <code>FLOWHISTORY_NOTIFY_</code> prefix (see README).
+    </p>
+    <pre class="rounded-md bg-gray-100 p-3 text-xs dark:bg-gray-900"><code># Enable/disable and event filter
+FLOWHISTORY_PREFIX_NOTIFY=true
+FLOWHISTORY_PREFIX_NOTIFY_EVENTS=all     # or: backup_failed,restore_success,restore_failed
+
+# Discord
+FLOWHISTORY_PREFIX_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Slack
+FLOWHISTORY_PREFIX_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+
+# Telegram (both required)
+FLOWHISTORY_PREFIX_TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+FLOWHISTORY_PREFIX_TELEGRAM_CHAT_ID=123456789
+
+# Pushbullet
+FLOWHISTORY_PREFIX_PUSHBULLET_API_KEY=o.abc123...
+
+# Home Assistant (both required)
+FLOWHISTORY_PREFIX_HOMEASSISTANT_URL=http://homeassistant.local:8123
+FLOWHISTORY_PREFIX_HOMEASSISTANT_TOKEN=eyJ...</code></pre>
   {% include "backup/components/_card_section_end.html" %}
 
   <a href="{% url 'dashboard' %}" class="btn-secondary">Back to Dashboard</a>

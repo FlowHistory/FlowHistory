@@ -214,76 +214,9 @@
           {% endif %}
         </td>
       </tr>
-      <tr>
-        <th class="th-label">Discord {% include "backup/components/_tooltip.html" with text="Discord webhook URL. Set per-instance via _DISCORD_WEBHOOK_URL env var, or globally via FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL." %}</th>
-        <td class="px-4 py-2">
-          {% if discord_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif discord_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th class="th-label">Slack {% include "backup/components/_tooltip.html" with text="Slack incoming webhook URL. Set per-instance via _SLACK_WEBHOOK_URL env var, or globally via FLOWHISTORY_NOTIFY_SLACK_WEBHOOK_URL." %}</th>
-        <td class="px-4 py-2">
-          {% if slack_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif slack_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th class="th-label">Telegram {% include "backup/components/_tooltip.html" with text="Telegram bot token and chat ID. Set per-instance via _TELEGRAM_BOT_TOKEN and _TELEGRAM_CHAT_ID env vars, or globally via FLOWHISTORY_NOTIFY_TELEGRAM_BOT_TOKEN and FLOWHISTORY_NOTIFY_TELEGRAM_CHAT_ID." %}</th>
-        <td class="px-4 py-2">
-          {% if telegram_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif telegram_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th class="th-label">Pushbullet {% include "backup/components/_tooltip.html" with text="Pushbullet API key. Set per-instance via _PUSHBULLET_API_KEY env var, or globally via FLOWHISTORY_NOTIFY_PUSHBULLET_API_KEY." %}</th>
-        <td class="px-4 py-2">
-          {% if pushbullet_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif pushbullet_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
-      <tr>
-        <th class="th-label">Home Assistant {% include "backup/components/_tooltip.html" with text="Home Assistant URL and long-lived access token. Set per-instance via _HOMEASSISTANT_URL and _HOMEASSISTANT_TOKEN env vars, or globally via FLOWHISTORY_NOTIFY_HOMEASSISTANT_URL and FLOWHISTORY_NOTIFY_HOMEASSISTANT_TOKEN." %}</th>
-        <td class="px-4 py-2">
-          {% if ha_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif ha_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
+      {% for backend in notify_backend_status %}
+        {% include "backup/components/_notify_backend_row.html" %}
+      {% endfor %}
     </tbody>
   </table>
   {% if has_any_notification_backend %}
