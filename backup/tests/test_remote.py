@@ -30,8 +30,10 @@ class RemotePollerTest(TestCase):
         with patch("backup.services.remote_service.requests") as mock_requests:
             mock_requests.get.return_value = mock_resp
             with patch("backup.services.backup_service.create_backup") as mock_backup:
-                mock_backup.return_value = MagicMock(status="success", filename="test.tar.gz")
-                result = poller.poll_once()
+                mock_backup.return_value = MagicMock(
+                    status="success", filename="test.tar.gz"
+                )
+                poller.poll_once()
                 self.assertTrue(mock_backup.called)
 
     def test_poll_once_skips_unchanged(self):

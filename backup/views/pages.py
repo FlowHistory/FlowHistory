@@ -43,18 +43,24 @@ def dashboard(request):
 
     instances = []
     for config in annotated:
-        instances.append({
-            "config": config,
-            "backup_count": config.backup_count,
-            "last_backup_at": config.last_backup_at,
-            "total_size": config.total_size or 0,
-            "is_healthy": not config.last_backup_error,
-        })
+        instances.append(
+            {
+                "config": config,
+                "backup_count": config.backup_count,
+                "last_backup_at": config.last_backup_at,
+                "total_size": config.total_size or 0,
+                "is_healthy": not config.last_backup_error,
+            }
+        )
 
-    return render(request, "backup/dashboard.html", {
-        "instances": instances,
-        "total_instances": count,
-    })
+    return render(
+        request,
+        "backup/dashboard.html",
+        {
+            "instances": instances,
+            "total_instances": count,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -64,12 +70,16 @@ def dashboard(request):
 
 @require_GET
 def instance_add(request):
-    return render(request, "backup/instance_add.html", {
-        "breadcrumb_items": [
-            {"label": "Dashboard", "url": reverse("dashboard")},
-            {"label": "Add Instance"},
-        ],
-    })
+    return render(
+        request,
+        "backup/instance_add.html",
+        {
+            "breadcrumb_items": [
+                {"label": "Dashboard", "url": reverse("dashboard")},
+                {"label": "Add Instance"},
+            ],
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -82,16 +92,22 @@ def instance_dashboard(request, slug):
     config = _get_config(slug)
     backups = BackupRecord.objects.filter(config=config)
     flows_path = config.flows_path
-    flows_accessible = os.path.isfile(flows_path) if config.source_type == "local" else None
+    flows_accessible = (
+        os.path.isfile(flows_path) if config.source_type == "local" else None
+    )
     last_backup = backups.first()
 
-    return render(request, "backup/instance_dashboard.html", {
-        "config": config,
-        "backups": backups[:50],
-        "backup_count": backups.count(),
-        "flows_accessible": flows_accessible,
-        "last_backup": last_backup,
-    })
+    return render(
+        request,
+        "backup/instance_dashboard.html",
+        {
+            "config": config,
+            "backups": backups[:50],
+            "backup_count": backups.count(),
+            "flows_accessible": flows_accessible,
+            "last_backup": last_backup,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +121,7 @@ def instance_settings(request, slug):
     username, password = config.get_nodered_credentials()
 
     from ..services.notification_service import get_configured_backends
+
     notification_backends = get_configured_backends(config)
 
     # Check backend config sources (instance-specific vs global)
@@ -117,8 +134,7 @@ def instance_settings(request, slug):
             for f in env_fields
         )
         glob = all(
-            os.environ.get(f"FLOWHISTORY_NOTIFY_{f}", "").strip()
-            for f in env_fields
+            os.environ.get(f"FLOWHISTORY_NOTIFY_{f}", "").strip() for f in env_fields
         )
         return inst, glob
 
@@ -126,33 +142,52 @@ def instance_settings(request, slug):
     _backends = [
         ("Discord", "Discord webhook URL", ("DISCORD_WEBHOOK_URL",)),
         ("Slack", "Slack incoming webhook URL", ("SLACK_WEBHOOK_URL",)),
-        ("Telegram", "Telegram bot token and chat ID", ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")),
+        (
+            "Telegram",
+            "Telegram bot token and chat ID",
+            ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"),
+        ),
         ("Pushbullet", "Pushbullet API key", ("PUSHBULLET_API_KEY",)),
-        ("Home Assistant", "Home Assistant URL and long-lived access token", ("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN")),
+        (
+            "Home Assistant",
+            "Home Assistant URL and long-lived access token",
+            ("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN"),
+        ),
     ]
     for label, description, env_fields in _backends:
         inst_vars = " and ".join(f"FLOWHISTORY_{prefix}_{f}" for f in env_fields)
         global_vars = " and ".join(f"FLOWHISTORY_NOTIFY_{f}" for f in env_fields)
-        tooltip = f"{description}. Set per-instance via {inst_vars}, or globally via {global_vars}."
+        tooltip = (
+            f"{description}. Set per-instance via {inst_vars},"
+            f" or globally via {global_vars}."
+        )
         inst, glob = _check_backend(*env_fields)
-        notify_backend_status.append({
-            "label": label, "tooltip": tooltip,
-            "is_instance": inst, "is_global": glob,
-        })
+        notify_backend_status.append(
+            {
+                "label": label,
+                "tooltip": tooltip,
+                "is_instance": inst,
+                "is_global": glob,
+            }
+        )
 
-    return render(request, "backup/settings.html", {
-        "config": config,
-        "has_credentials": bool(username),
-        "defaults": NodeRedConfig.get_field_defaults(),
-        "notification_backends": notification_backends,
-        "notify_backend_status": notify_backend_status,
-        "has_any_notification_backend": bool(notification_backends),
-        "breadcrumb_items": [
-            {"label": "Dashboard", "url": reverse("dashboard")},
-            {"label": config.name, "url": config.get_absolute_url()},
-            {"label": "Settings"},
-        ],
-    })
+    return render(
+        request,
+        "backup/settings.html",
+        {
+            "config": config,
+            "has_credentials": bool(username),
+            "defaults": NodeRedConfig.get_field_defaults(),
+            "notification_backends": notification_backends,
+            "notify_backend_status": notify_backend_status,
+            "has_any_notification_backend": bool(notification_backends),
+            "breadcrumb_items": [
+                {"label": "Dashboard", "url": reverse("dashboard")},
+                {"label": config.name, "url": config.get_absolute_url()},
+                {"label": "Settings"},
+            ],
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +210,7 @@ def instance_delete(request, slug):
         # Remove orphaned APScheduler jobs before deleting the config
         try:
             from django_apscheduler.models import DjangoJob
+
             DjangoJob.objects.filter(
                 id__in=[f"backup_{config.pk}", f"retention_{config.pk}"]
             ).delete()
@@ -189,13 +225,17 @@ def instance_delete(request, slug):
     backups = BackupRecord.objects.filter(config=config, status="success")
     total_size = backups.aggregate(total=Sum("file_size"))["total"] or 0
 
-    return render(request, "backup/instance_delete.html", {
-        "config": config,
-        "backup_count": backups.count(),
-        "total_size": total_size,
-        "breadcrumb_items": [
-            {"label": "Dashboard", "url": reverse("dashboard")},
-            {"label": config.name, "url": config.get_absolute_url()},
-            {"label": "Delete"},
-        ],
-    })
+    return render(
+        request,
+        "backup/instance_delete.html",
+        {
+            "config": config,
+            "backup_count": backups.count(),
+            "total_size": total_size,
+            "breadcrumb_items": [
+                {"label": "Dashboard", "url": reverse("dashboard")},
+                {"label": config.name, "url": config.get_absolute_url()},
+                {"label": "Delete"},
+            ],
+        },
+    )

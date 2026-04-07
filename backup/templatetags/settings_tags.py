@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 
 from django import template
@@ -5,25 +6,28 @@ from django import template
 register = template.Library()
 
 _DAY_NAMES = [
-    "Monday", "Tuesday", "Wednesday", "Thursday",
-    "Friday", "Saturday", "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
 ]
 
 
 @register.filter
 def default_label(value, default):
-    """Return '(default)' when value matches default, or '(default: X)' when it differs."""
+    """Return '(default)' or '(default: X)' hint text."""
     if default is None:
         return ""
 
-    # Normalise for comparison: TimeField stores time objects but default may be a string
+    # Normalise: TimeField stores time objects but default may be str
     cmp_value = value
     cmp_default = default
     if isinstance(value, datetime.time) and isinstance(default, str):
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             cmp_default = datetime.time.fromisoformat(default)
-        except (ValueError, TypeError):
-            pass
 
     if cmp_value == cmp_default:
         return "(default)"

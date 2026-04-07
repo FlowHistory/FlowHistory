@@ -3,7 +3,7 @@ import json
 import tarfile
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
@@ -37,9 +37,7 @@ class RestoreServiceTest(TempBackupDirMixin, TestCase):
 
     def test_restore_creates_safety_backup(self):
         restore_backup(self.backup_record.pk)
-        safety = BackupRecord.objects.filter(
-            config=self.config, trigger="pre_restore"
-        )
+        safety = BackupRecord.objects.filter(config=self.config, trigger="pre_restore")
         self.assertTrue(safety.exists())
 
     def test_restore_record_tracks_safety_backup(self):
@@ -134,7 +132,9 @@ class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
         self.backup_record = create_backup(config=self.config, trigger="manual")
 
     def test_post_restores_backup(self):
-        resp = self.client.post(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
+        resp = self.client.post(
+            f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/"
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
@@ -142,7 +142,9 @@ class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
         self.assertIn("files_restored", data["restore"])
 
     def test_get_not_allowed(self):
-        resp = self.client.get(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
+        resp = self.client.get(
+            f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/"
+        )
         self.assertEqual(resp.status_code, 405)
 
     def test_nonexistent_backup_returns_404(self):
@@ -150,7 +152,9 @@ class ApiRestoreBackupTest(TempBackupDirMixin, TestCase):
         self.assertEqual(resp.status_code, 404)
 
     def test_response_includes_safety_backup(self):
-        resp = self.client.post(f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/")
+        resp = self.client.post(
+            f"/api/instance/{self.config.slug}/restore/{self.backup_record.pk}/"
+        )
         data = resp.json()
         self.assertIn("safety_backup_id", data["restore"])
 

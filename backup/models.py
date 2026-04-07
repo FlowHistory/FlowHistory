@@ -15,7 +15,12 @@ class NodeRedConfig(models.Model):
     ]
 
     INSTANCE_COLORS = [
-        "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899",
+        "#3B82F6",
+        "#EF4444",
+        "#10B981",
+        "#F59E0B",
+        "#8B5CF6",
+        "#EC4899",
     ]
 
     RESERVED_SLUGS = {"add", "api"}
@@ -24,7 +29,9 @@ class NodeRedConfig(models.Model):
     name = models.CharField(max_length=100, default="Node-RED")
     slug = models.SlugField(max_length=100, unique=True)
     color = models.CharField(
-        max_length=7, blank=True, default="",
+        max_length=7,
+        blank=True,
+        default="",
         validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Enter a valid hex color.")],
     )
     is_enabled = models.BooleanField(default=True)
@@ -32,7 +39,9 @@ class NodeRedConfig(models.Model):
 
     # Source type
     source_type = models.CharField(
-        max_length=10, choices=SOURCE_TYPE_CHOICES, default="local",
+        max_length=10,
+        choices=SOURCE_TYPE_CHOICES,
+        default="local",
     )
     nodered_url = models.URLField(blank=True, default="")
     env_prefix = models.CharField(max_length=50, blank=True, default="")
@@ -49,8 +58,12 @@ class NodeRedConfig(models.Model):
     backup_day = models.SmallIntegerField(
         default=0, help_text="Day of week for weekly backups (0=Monday)"
     )
-    max_backups = models.PositiveIntegerField(default=20, validators=[MinValueValidator(1)])
-    max_age_days = models.PositiveIntegerField(default=30, validators=[MinValueValidator(1)])
+    max_backups = models.PositiveIntegerField(
+        default=20, validators=[MinValueValidator(1)]
+    )
+    max_age_days = models.PositiveIntegerField(
+        default=30, validators=[MinValueValidator(1)]
+    )
     schedule_enabled = models.BooleanField(default=True)
     always_backup = models.BooleanField(default=False)
     watch_enabled = models.BooleanField(default=True)
@@ -77,8 +90,35 @@ class NodeRedConfig(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        """Auto-generate slug from name with uniqueness dedup."""
+        if not self.slug:
+            base = slugify(self.name) or "instance"
+            if base in self.RESERVED_SLUGS:
+                base = f"{base}-instance"
+            slug, n = base, 1
+            while NodeRedConfig.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f"{base}-{n}"
+            self.slug = slug
+        if not self.color:
+            used = set(
+                NodeRedConfig.objects.exclude(pk=self.pk).values_list(
+                    "color", flat=True
+                )
+            )
+            for c in self.INSTANCE_COLORS:
+                if c not in used:
+                    self.color = c
+                    break
+            else:
+                # All colors used — fall back to modulo
+                self.color = self.INSTANCE_COLORS[len(used) % len(self.INSTANCE_COLORS)]
+        super().save(*args, **kwargs)
+
     def get_absolute_url(self):
         from django.urls import reverse
+
         return reverse("instance_dashboard", kwargs={"slug": self.slug})
 
     @property
@@ -94,7 +134,9 @@ class NodeRedConfig(models.Model):
         defaults = {}
         for field in cls._meta.get_fields():
             if hasattr(field, "default") and field.default is not NOT_PROVIDED:
-                defaults[field.name] = field.default() if callable(field.default) else field.default
+                defaults[field.name] = (
+                    field.default() if callable(field.default) else field.default
+                )
         return defaults
 
     def get_nodered_credentials(self):
@@ -107,36 +149,14 @@ class NodeRedConfig(models.Model):
         return username, password
 
     def get_notification_url(self, backend_field):
-        """Read notification URL from env vars: per-instance first, then global fallback."""
+        """Read notification URL from env vars: per-instance first, then global."""
         if self.env_prefix:
-            url = os.environ.get(f"FLOWHISTORY_{self.env_prefix.upper()}_{backend_field}")
+            url = os.environ.get(
+                f"FLOWHISTORY_{self.env_prefix.upper()}_{backend_field}"
+            )
             if url:
                 return url.strip()
         return os.environ.get(f"FLOWHISTORY_NOTIFY_{backend_field}", "").strip()
-
-    def save(self, *args, **kwargs):
-        """Auto-generate slug from name with uniqueness dedup."""
-        if not self.slug:
-            base = slugify(self.name) or "instance"
-            if base in self.RESERVED_SLUGS:
-                base = f"{base}-instance"
-            slug, n = base, 1
-            while NodeRedConfig.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                n += 1
-                slug = f"{base}-{n}"
-            self.slug = slug
-        if not self.color:
-            used = set(
-                NodeRedConfig.objects.exclude(pk=self.pk).values_list("color", flat=True)
-            )
-            for c in self.INSTANCE_COLORS:
-                if c not in used:
-                    self.color = c
-                    break
-            else:
-                # All colors used — fall back to modulo
-                self.color = self.INSTANCE_COLORS[len(used) % len(self.INSTANCE_COLORS)]
-        super().save(*args, **kwargs)
 
 
 class BackupRecord(models.Model):

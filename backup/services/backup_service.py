@@ -35,13 +35,19 @@ def create_backup(config, trigger="manual", flows_data=None):
     short_id = uuid.uuid4().hex[:8]
     filename = f"flowhistory_{timestamp}_{short_id}.tar.gz"
     backup_dir = config.backup_dir
-    if not str(backup_dir.resolve()).startswith(str(Path(settings.BACKUP_DIR).resolve())):
-        return _fail(config, filename, Path(""), trigger, "Backup directory outside allowed path")
+    if not str(backup_dir.resolve()).startswith(
+        str(Path(settings.BACKUP_DIR).resolve())
+    ):
+        return _fail(
+            config, filename, Path(""), trigger, "Backup directory outside allowed path"
+        )
     backup_dir.mkdir(parents=True, exist_ok=True)
     dest = backup_dir / filename
 
     if flows_data is not None:
-        flows_bytes = flows_data if isinstance(flows_data, bytes) else flows_data.encode()
+        flows_bytes = (
+            flows_data if isinstance(flows_data, bytes) else flows_data.encode()
+        )
         is_local = False
     else:
         flows_path = Path(config.flows_path)
@@ -61,16 +67,21 @@ def create_backup(config, trigger="manual", flows_data=None):
 
     # Fetch last backup once — used for both dedup and changes
     last = (
-        BackupRecord.objects
-        .filter(config=config, status="success")
+        BackupRecord.objects.filter(config=config, status="success")
         .order_by("-created_at")
         .first()
     )
 
-    if trigger == "file_change" or (trigger == "scheduled" and not config.always_backup):
-        if last and last.checksum == checksum:
-            logger.info("Skipping backup — flows.json unchanged (checksum match)")
-            return None
+    if (
+        (
+            trigger == "file_change"
+            or (trigger == "scheduled" and not config.always_backup)
+        )
+        and last
+        and last.checksum == checksum
+    ):
+        logger.info("Skipping backup — flows.json unchanged (checksum match)")
+        return None
 
     try:
         archive_size = _create_archive(dest, config, is_local, flows_bytes)
@@ -92,8 +103,12 @@ def create_backup(config, trigger="manual", flows_data=None):
         trigger=trigger,
         tab_summary=tab_summary,
         changes_summary=changes_summary,
-        includes_credentials=is_local and config.backup_credentials and _cred_path(config).is_file(),
-        includes_settings=is_local and config.backup_settings and _settings_path(config).is_file(),
+        includes_credentials=is_local
+        and config.backup_credentials
+        and _cred_path(config).is_file(),
+        includes_settings=is_local
+        and config.backup_settings
+        and _settings_path(config).is_file(),
     )
 
     config.last_successful_backup = now
@@ -106,6 +121,7 @@ def create_backup(config, trigger="manual", flows_data=None):
 
     try:
         from backup.services.retention_service import apply_retention
+
         apply_retention(config)
     except Exception:
         logger.warning("Retention cleanup failed after backup", exc_info=True)
@@ -190,11 +206,16 @@ def _notify_backup(config, record):
 
         is_success = record.status == "success"
         payload = NotificationPayload(
-            event=NotifyEvent.BACKUP_SUCCESS if is_success else NotifyEvent.BACKUP_FAILED,
+            event=NotifyEvent.BACKUP_SUCCESS
+            if is_success
+            else NotifyEvent.BACKUP_FAILED,
             instance_name=config.name,
             instance_slug=config.slug,
             instance_color=config.color,
-            title=f"Backup {'successful' if is_success else 'failed'} \u2014 {config.name}",
+            title=(
+                f"Backup {'successful' if is_success else 'failed'}"
+                f" \u2014 {config.name}"
+            ),
             message=record.filename if is_success else "Backup attempt failed.",
             error=record.error_message if not is_success else None,
             filename=record.filename,

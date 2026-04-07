@@ -4,7 +4,6 @@ from django.db import migrations
 from django.utils import timezone
 from django.utils.text import slugify
 
-
 RESERVED_SLUGS = {"add", "api"}
 
 
@@ -30,7 +29,6 @@ def populate_instance_fields(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("backup", "0007_add_instance_fields"),
     ]

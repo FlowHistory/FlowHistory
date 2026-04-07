@@ -12,10 +12,10 @@ _backends = None
 def _discover_backends():
     """Import and instantiate all backend classes."""
     from backup.services.notifications.discord import DiscordBackend
+    from backup.services.notifications.homeassistant import HomeAssistantBackend
+    from backup.services.notifications.pushbullet import PushbulletBackend
     from backup.services.notifications.slack import SlackBackend
     from backup.services.notifications.telegram import TelegramBackend
-    from backup.services.notifications.pushbullet import PushbulletBackend
-    from backup.services.notifications.homeassistant import HomeAssistantBackend
 
     return [
         DiscordBackend(),
@@ -83,6 +83,7 @@ def notify(config, payload):
             except Exception:
                 logger.warning(
                     "Notification backend %s failed for event %s",
-                    backend.name(), payload.event,
+                    backend.name(),
+                    payload.event,
                     exc_info=True,
                 )

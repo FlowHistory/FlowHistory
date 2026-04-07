@@ -44,10 +44,13 @@ class NodeRedConfigModelTest(TempBackupDirMixin, TestCase):
 
     def test_get_nodered_credentials_with_prefix(self):
         config = NodeRedConfig.objects.create(name="Cred Test", env_prefix="MYTEST")
-        with patch.dict("os.environ", {
-            "FLOWHISTORY_MYTEST_USER": "admin",
-            "FLOWHISTORY_MYTEST_PASS": "secret",
-        }):
+        with patch.dict(
+            "os.environ",
+            {
+                "FLOWHISTORY_MYTEST_USER": "admin",
+                "FLOWHISTORY_MYTEST_PASS": "secret",
+            },
+        ):
             user, pwd = config.get_nodered_credentials()
             self.assertEqual(user, "admin")
             self.assertEqual(pwd, "secret")

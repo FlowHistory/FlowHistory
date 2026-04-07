@@ -12,17 +12,35 @@ logger = logging.getLogger(__name__)
 
 # Fields recognized after FLOWHISTORY_{PREFIX}_
 _KNOWN_FIELDS = {
-    "URL", "FLOWS_PATH", "USER", "PASS", "NAME", "COLOR",
-    "SCHEDULE", "TIME", "DAY", "MAX_BACKUPS", "MAX_AGE_DAYS",
-    "POLL_INTERVAL", "WATCH", "DEBOUNCE", "ALWAYS_BACKUP",
-    "BACKUP_CREDENTIALS", "BACKUP_SETTINGS", "RESTART_ON_RESTORE",
+    "URL",
+    "FLOWS_PATH",
+    "USER",
+    "PASS",
+    "NAME",
+    "COLOR",
+    "SCHEDULE",
+    "TIME",
+    "DAY",
+    "MAX_BACKUPS",
+    "MAX_AGE_DAYS",
+    "POLL_INTERVAL",
+    "WATCH",
+    "DEBOUNCE",
+    "ALWAYS_BACKUP",
+    "BACKUP_CREDENTIALS",
+    "BACKUP_SETTINGS",
+    "RESTART_ON_RESTORE",
     "CONTAINER_NAME",
     # Notifications (webhook URLs / tokens are runtime-only, not stored in DB)
-    "NOTIFY", "NOTIFY_EVENTS", "DISCORD_WEBHOOK_URL",
+    "NOTIFY",
+    "NOTIFY_EVENTS",
+    "DISCORD_WEBHOOK_URL",
     "SLACK_WEBHOOK_URL",
-    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
     "PUSHBULLET_API_KEY",
-    "HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN",
+    "HOMEASSISTANT_URL",
+    "HOMEASSISTANT_TOKEN",
 }
 
 _ENV_PATTERN = re.compile(
@@ -99,14 +117,18 @@ def _build_config_kwargs(prefix, source_type):
             except (ValueError, TypeError):
                 logger.warning(
                     "Invalid value for FLOWHISTORY_%s_%s=%r, skipping",
-                    prefix, env_suffix, value,
+                    prefix,
+                    env_suffix,
+                    value,
                 )
                 continue
 
     # Validate enum fields
     freq = kwargs.get("backup_frequency")
     if freq is not None and freq not in _VALID_FREQUENCIES:
-        logger.warning("Invalid FLOWHISTORY_%s_SCHEDULE=%r, using default 'daily'", prefix, freq)
+        logger.warning(
+            "Invalid FLOWHISTORY_%s_SCHEDULE=%r, using default 'daily'", prefix, freq
+        )
         del kwargs["backup_frequency"]
 
     day = kwargs.get("backup_day")
@@ -116,7 +138,8 @@ def _build_config_kwargs(prefix, source_type):
 
     if freq == "weekly" and "backup_day" not in kwargs:
         logger.warning(
-            "FLOWHISTORY_%s_SCHEDULE=weekly but _DAY not set, defaulting to Monday (0)", prefix,
+            "FLOWHISTORY_%s_SCHEDULE=weekly but _DAY not set, defaulting to Monday (0)",
+            prefix,
         )
 
     bool_map = {
@@ -154,7 +177,8 @@ def discover_instances_from_env(force=False):
         if existing and not force:
             logger.debug(
                 "Instance with env_prefix=%s already exists (pk=%d), skipping",
-                prefix, existing.pk,
+                prefix,
+                existing.pk,
             )
             skipped.append(prefix)
             continue
@@ -174,10 +198,14 @@ def discover_instances_from_env(force=False):
                 existing.save()
             except (ValidationError, ValueError) as exc:
                 logger.warning(
-                    "Invalid config for prefix %s, skipping update: %s", prefix, exc,
+                    "Invalid config for prefix %s, skipping update: %s",
+                    prefix,
+                    exc,
                 )
                 continue
-            logger.info("Updated instance %s (pk=%d) from env vars", prefix, existing.pk)
+            logger.info(
+                "Updated instance %s (pk=%d) from env vars", prefix, existing.pk
+            )
             updated.append(prefix)
         else:
             config = NodeRedConfig(**kwargs)
@@ -186,12 +214,16 @@ def discover_instances_from_env(force=False):
                 config.save()
             except (ValidationError, ValueError) as exc:
                 logger.warning(
-                    "Invalid config for prefix %s, skipping creation: %s", prefix, exc,
+                    "Invalid config for prefix %s, skipping creation: %s",
+                    prefix,
+                    exc,
                 )
                 continue
             logger.info(
                 "Created instance %s (pk=%d, slug=%s) from env vars",
-                prefix, config.pk, config.slug,
+                prefix,
+                config.pk,
+                config.slug,
             )
             created.append(prefix)
 

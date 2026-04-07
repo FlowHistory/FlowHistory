@@ -30,8 +30,9 @@ def apply_retention(config):
     # --- Delete by age first ---
     age_cutoff = now - timedelta(days=config.max_age_days)
     old_backups = (
-        BackupRecord.objects
-        .filter(config=config, status="success", created_at__lt=age_cutoff)
+        BackupRecord.objects.filter(
+            config=config, status="success", created_at__lt=age_cutoff
+        )
         .exclude(trigger="pre_restore", created_at__gte=protected_cutoff)
         .exclude(is_pinned=True)
     )
@@ -45,16 +46,15 @@ def apply_retention(config):
             deleted_by_age += 1
 
     # --- Delete by count ---
-    remaining = (
-        BackupRecord.objects
-        .filter(config=config, status="success")
-        .order_by("-created_at")
+    remaining = BackupRecord.objects.filter(config=config, status="success").order_by(
+        "-created_at"
     )
 
-    excess = list(remaining[config.max_backups:])
+    excess = list(remaining[config.max_backups :])
     # Filter out protected pre_restore backups
     excess = [
-        r for r in excess
+        r
+        for r in excess
         if not (r.trigger == "pre_restore" and r.created_at >= protected_cutoff)
         and not r.is_pinned
     ]
@@ -95,7 +95,11 @@ def _notify_retention(config, deleted_by_age, deleted_by_count):
             instance_slug=config.slug,
             instance_color=config.color,
             title=f"Retention cleanup \u2014 {config.name}",
-            message=f"Deleted {total} backup{'s' if total != 1 else ''} ({deleted_by_age} by age, {deleted_by_count} by count).",
+            message=(
+                f"Deleted {total} backup{'s' if total != 1 else ''}"
+                f" ({deleted_by_age} by age,"
+                f" {deleted_by_count} by count)."
+            ),
         )
         notify(config, payload)
     except Exception:

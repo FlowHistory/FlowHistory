@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("backup", "0006_remove_noderedconfig_name_and_more"),
     ]

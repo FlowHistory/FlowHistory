@@ -4,24 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0005_noderedconfig_always_backup'),
+        ("backup", "0005_noderedconfig_always_backup"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='noderedconfig',
-            name='name',
+            model_name="noderedconfig",
+            name="name",
         ),
         migrations.AlterField(
-            model_name='noderedconfig',
-            name='backup_credentials',
+            model_name="noderedconfig",
+            name="backup_credentials",
             field=models.BooleanField(default=False),
         ),
         migrations.AlterField(
-            model_name='noderedconfig',
-            name='watch_debounce_seconds',
+            model_name="noderedconfig",
+            name="watch_debounce_seconds",
             field=models.PositiveIntegerField(default=3),
         ),
     ]

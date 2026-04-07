@@ -20,25 +20,39 @@ def _scheduled_backup(config_id):
     try:
         config = NodeRedConfig.objects.get(pk=config_id)
         if not config.schedule_enabled:
-            logger.info("Scheduled backup skipped for %s — schedule_enabled is False", config.name)
+            logger.info(
+                "Scheduled backup skipped for %s — schedule_enabled is False",
+                config.name,
+            )
             return
 
         flows_data = None
         if config.source_type == "remote":
             from backup.services.remote_service import fetch_remote_flows
+
             flows_data, _ = fetch_remote_flows(config)
 
-        result = create_backup(config=config, trigger="scheduled", flows_data=flows_data)
+        result = create_backup(
+            config=config, trigger="scheduled", flows_data=flows_data
+        )
         if result is None:
             logger.info("Scheduled backup skipped for %s — no changes", config.name)
         elif result.status == "success":
-            logger.info("Scheduled backup created for %s: %s", config.name, result.filename)
+            logger.info(
+                "Scheduled backup created for %s: %s", config.name, result.filename
+            )
         else:
-            logger.error("Scheduled backup failed for %s: %s", config.name, result.error_message)
+            logger.error(
+                "Scheduled backup failed for %s: %s", config.name, result.error_message
+            )
     except NodeRedConfig.DoesNotExist:
-        logger.warning("Scheduled backup skipped — config %d no longer exists", config_id)
+        logger.warning(
+            "Scheduled backup skipped — config %d no longer exists", config_id
+        )
     except Exception:
-        logger.exception("Unexpected error in scheduled backup for config %d", config_id)
+        logger.exception(
+            "Unexpected error in scheduled backup for config %d", config_id
+        )
 
 
 def _scheduled_retention(config_id):
@@ -55,7 +69,9 @@ def _scheduled_retention(config_id):
     except NodeRedConfig.DoesNotExist:
         logger.warning("Retention skipped — config %d no longer exists", config_id)
     except Exception:
-        logger.exception("Unexpected error in scheduled retention for config %d", config_id)
+        logger.exception(
+            "Unexpected error in scheduled retention for config %d", config_id
+        )
 
 
 class Command(BaseCommand):
@@ -87,7 +103,9 @@ class Command(BaseCommand):
                 replace_existing=True,
                 max_instances=1,
             )
-            self.stdout.write(f"Scheduled jobs for instance: {config.name} (pk={config.pk})")
+            self.stdout.write(
+                f"Scheduled jobs for instance: {config.name} (pk={config.pk})"
+            )
 
         self.stdout.write("Starting scheduler...")
         try:

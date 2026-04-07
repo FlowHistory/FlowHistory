@@ -15,8 +15,10 @@ class NotifyEvent:
     RETENTION_CLEANUP = "retention_cleanup"
 
     ALL = {
-        BACKUP_SUCCESS, BACKUP_FAILED,
-        RESTORE_SUCCESS, RESTORE_FAILED,
+        BACKUP_SUCCESS,
+        BACKUP_FAILED,
+        RESTORE_SUCCESS,
+        RESTORE_FAILED,
         RETENTION_CLEANUP,
     }
 
@@ -24,18 +26,18 @@ class NotifyEvent:
 
 
 EVENT_EMOJI = {
-    NotifyEvent.BACKUP_SUCCESS: "\u2705",     # check mark
-    NotifyEvent.BACKUP_FAILED: "\u274c",      # cross mark
+    NotifyEvent.BACKUP_SUCCESS: "\u2705",  # check mark
+    NotifyEvent.BACKUP_FAILED: "\u274c",  # cross mark
     NotifyEvent.RESTORE_SUCCESS: "\u2705",
     NotifyEvent.RESTORE_FAILED: "\u274c",
     NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",  # broom
 }
 
 EVENT_COLORS = {
-    NotifyEvent.BACKUP_SUCCESS: "#10B981",    # green
-    NotifyEvent.BACKUP_FAILED: "#EF4444",     # red
-    NotifyEvent.RESTORE_SUCCESS: "#3B82F6",   # blue
-    NotifyEvent.RESTORE_FAILED: "#EF4444",    # red
+    NotifyEvent.BACKUP_SUCCESS: "#10B981",  # green
+    NotifyEvent.BACKUP_FAILED: "#EF4444",  # red
+    NotifyEvent.RESTORE_SUCCESS: "#3B82F6",  # blue
+    NotifyEvent.RESTORE_FAILED: "#EF4444",  # red
     NotifyEvent.RETENTION_CLEANUP: "#F59E0B",  # amber
 }
 

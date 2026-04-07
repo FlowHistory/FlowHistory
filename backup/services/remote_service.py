@@ -1,7 +1,6 @@
 """Remote Node-RED API poller for detecting flow changes."""
 
 import hashlib
-import json
 import logging
 import threading
 import time
@@ -26,7 +25,10 @@ def authenticate_nodered(url, username, password, scope="flows.read"):
     if not username:
         return None
     if url.startswith("http://"):
-        logger.warning("Sending credentials over plaintext HTTP to %s — use HTTPS in production", url)
+        logger.warning(
+            "Sending credentials over plaintext HTTP to %s — use HTTPS in production",
+            url,
+        )
     resp = requests.post(
         f"{url}/auth/token",
         data={
@@ -81,7 +83,9 @@ def fetch_remote_flows(config, token=None):
 
     if len(resp.content) > MAX_RESPONSE_BYTES:
         raise ValueError(
-            f"Flows response too large ({len(resp.content)} bytes, limit {MAX_RESPONSE_BYTES})"
+            f"Flows response too large"
+            f" ({len(resp.content)} bytes,"
+            f" limit {MAX_RESPONSE_BYTES})"
         )
 
     return resp.text, token
@@ -99,7 +103,10 @@ def deploy_remote_flows(config, flows_json):
     """
     username, password = config.get_nodered_credentials()
     token = authenticate_nodered(
-        config.nodered_url, username, password, scope="flows.read flows.write",
+        config.nodered_url,
+        username,
+        password,
+        scope="flows.read flows.write",
     )
     headers = {"Content-Type": "application/json"}
     if token:
@@ -117,7 +124,10 @@ def deploy_remote_flows(config, flows_json):
     # Retry once on expired token
     if resp.status_code == 401 and token:
         token = authenticate_nodered(
-            config.nodered_url, username, password, scope="flows.read flows.write",
+            config.nodered_url,
+            username,
+            password,
+            scope="flows.read flows.write",
         )
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -145,6 +155,7 @@ class RemotePoller:
 
     def _get_config(self):
         from backup.models import NodeRedConfig
+
         return NodeRedConfig.objects.get(pk=self._config_id)
 
     def poll_once(self):
@@ -164,20 +175,28 @@ class RemotePoller:
         try:
             with self._lock:
                 # Expire cached token after TTL
-                if self._cached_token and (time.monotonic() - self._token_acquired_at) > TOKEN_TTL_SECONDS:
+                if (
+                    self._cached_token
+                    and (time.monotonic() - self._token_acquired_at) > TOKEN_TTL_SECONDS
+                ):
                     self._cached_token = None
-                flows_text, new_token = fetch_remote_flows(config, token=self._cached_token)
+                flows_text, new_token = fetch_remote_flows(
+                    config, token=self._cached_token
+                )
                 if new_token != self._cached_token:
                     self._token_acquired_at = time.monotonic()
                 self._cached_token = new_token
         except Exception as e:
             with self._lock:
                 self._consecutive_failures += 1
-                if hasattr(e, 'response') and e.response is not None:
+                if hasattr(e, "response") and e.response is not None:
                     status = e.response.status_code
                     try:
                         body = e.response.json()
-                        reason = body.get("error_description", body.get("error", f"{status} {e.response.reason}"))
+                        reason = body.get(
+                            "error_description",
+                            body.get("error", f"{status} {e.response.reason}"),
+                        )
                     except Exception:
                         reason = f"{status} {e.response.reason}"
                     if status in (401, 403):
@@ -189,11 +208,16 @@ class RemotePoller:
                     reason = f"Connection to {config.nodered_url} timed out"
                 else:
                     reason = str(e)
-            level = logging.WARNING if self._consecutive_failures >= BACKOFF_THRESHOLD else logging.ERROR
+            level = (
+                logging.WARNING
+                if self._consecutive_failures >= BACKOFF_THRESHOLD
+                else logging.ERROR
+            )
             logger.log(
                 level,
                 "Remote poll failed for %s (attempt %d)",
-                config.name, self._consecutive_failures,
+                config.name,
+                self._consecutive_failures,
                 exc_info=True,
             )
             config.last_backup_error = reason
@@ -217,16 +241,22 @@ class RemotePoller:
         logger.info("Remote flow change detected for %s", config.name)
 
         try:
-            result = create_backup(config=config, trigger="file_change", flows_data=flows_text)
+            result = create_backup(
+                config=config, trigger="file_change", flows_data=flows_text
+            )
             if result is None:
                 logger.info("Remote backup skipped for %s — no changes", config.name)
                 return False
             if result.status == "success":
-                logger.info("Remote backup created for %s: %s", config.name, result.filename)
+                logger.info(
+                    "Remote backup created for %s: %s", config.name, result.filename
+                )
                 return True
             return False
         except Exception:
-            logger.exception("Failed to create backup from remote flows for %s", config.name)
+            logger.exception(
+                "Failed to create backup from remote flows for %s", config.name
+            )
             return False
 
     def get_poll_interval(self, config):
@@ -236,7 +266,10 @@ class RemotePoller:
                 return AUTH_BACKOFF_SECONDS
             base = config.poll_interval_seconds
             if self._consecutive_failures >= BACKOFF_THRESHOLD:
-                return min(base * (2 ** (self._consecutive_failures - BACKOFF_THRESHOLD + 1)), MAX_BACKOFF_SECONDS)
+                return min(
+                    base * (2 ** (self._consecutive_failures - BACKOFF_THRESHOLD + 1)),
+                    MAX_BACKOFF_SECONDS,
+                )
             return base
 
 
@@ -251,7 +284,9 @@ def _run_remote_polling_loop(poller, stop_event, config_id):
             config = NodeRedConfig.objects.get(pk=config_id)
             interval = poller.get_poll_interval(config)
         except NodeRedConfig.DoesNotExist:
-            logger.warning("Remote poller stopping — config %d no longer exists", config_id)
+            logger.warning(
+                "Remote poller stopping — config %d no longer exists", config_id
+            )
             break
 
         if stop_event.wait(timeout=interval):
@@ -276,7 +311,9 @@ def start_all_remote_pollers(stop_event):
 
     configs = list(
         NodeRedConfig.objects.filter(
-            is_enabled=True, source_type="remote", watch_enabled=True,
+            is_enabled=True,
+            source_type="remote",
+            watch_enabled=True,
         )
     )
     threads = []
@@ -292,7 +329,9 @@ def start_all_remote_pollers(stop_event):
         threads.append(thread)
         logger.info(
             "Remote poller started for %s (%s), interval=%ds",
-            config.name, config.nodered_url, config.poll_interval_seconds,
+            config.name,
+            config.nodered_url,
+            config.poll_interval_seconds,
         )
 
     return threads

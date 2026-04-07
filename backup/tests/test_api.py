@@ -124,9 +124,13 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
-        self.assertEqual(data["backup"]["notes"], "Rewired MQTT pipeline to batch writes.")
+        self.assertEqual(
+            data["backup"]["notes"], "Rewired MQTT pipeline to batch writes."
+        )
         self.backup_record.refresh_from_db()
-        self.assertEqual(self.backup_record.notes, "Rewired MQTT pipeline to batch writes.")
+        self.assertEqual(
+            self.backup_record.notes, "Rewired MQTT pipeline to batch writes."
+        )
 
     def test_clear_notes(self):
         self.backup_record.notes = "old notes"
@@ -176,7 +180,9 @@ class ApiSetNotesTest(TempBackupDirMixin, TestCase):
         self.assertEqual(self.backup_record.notes, multiline)
 
     def test_get_method_not_allowed(self):
-        resp = self.client.get(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/")
+        resp = self.client.get(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/notes/"
+        )
         self.assertEqual(resp.status_code, 405)
 
 
@@ -193,7 +199,9 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
         self.backup_record = create_backup(config=self.config, trigger="manual")
 
     def test_pin_backup(self):
-        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.post(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/"
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["status"], "success")
@@ -204,7 +212,9 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
     def test_unpin_backup(self):
         self.backup_record.is_pinned = True
         self.backup_record.save()
-        resp = self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.post(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/"
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertFalse(data["backup"]["is_pinned"])
@@ -212,8 +222,12 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
         self.assertFalse(self.backup_record.is_pinned)
 
     def test_toggle_twice(self):
-        self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
-        self.client.post(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
+        self.client.post(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/"
+        )
+        self.client.post(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/"
+        )
         self.backup_record.refresh_from_db()
         self.assertFalse(self.backup_record.is_pinned)
 
@@ -222,7 +236,9 @@ class ApiTogglePinTest(TempBackupDirMixin, TestCase):
         self.assertEqual(resp.status_code, 404)
 
     def test_get_method_not_allowed(self):
-        resp = self.client.get(f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/")
+        resp = self.client.get(
+            f"/api/instance/{self.config.slug}/backup/{self.backup_record.pk}/pin/"
+        )
         self.assertEqual(resp.status_code, 405)
 
 
@@ -259,7 +275,9 @@ class BackupDeleteTest(TempBackupDirMixin, TestCase):
         self.assertEqual(resp.status_code, 302)
 
     def test_get_not_allowed(self):
-        resp = self.client.get(f"/instance/{self.config.slug}/backup/{self.backup_record.pk}/delete/")
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/backup/{self.backup_record.pk}/delete/"
+        )
         self.assertEqual(resp.status_code, 405)
 
 

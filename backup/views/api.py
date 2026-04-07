@@ -25,17 +25,22 @@ def api_create_backup(request, slug):
         flows_data = None
         if config.source_type == "remote":
             from ..services.remote_service import fetch_remote_flows
+
             flows_data, _ = fetch_remote_flows(config)
         record = create_backup(config=config, trigger="manual", flows_data=flows_data)
     except Exception as e:
         logger.exception("Unexpected error creating backup")
         import requests as http_requests
+
         if isinstance(e, http_requests.ConnectionError):
             msg = f"Cannot connect to {config.nodered_url}"
         elif isinstance(e, http_requests.HTTPError) and e.response is not None:
             try:
                 body = e.response.json()
-                msg = body.get("error_description", body.get("error", f"{e.response.status_code} {e.response.reason}"))
+                msg = body.get(
+                    "error_description",
+                    body.get("error", f"{e.response.status_code} {e.response.reason}"),
+                )
             except Exception:
                 msg = f"{e.response.status_code} {e.response.reason}"
         else:
@@ -59,24 +64,26 @@ def api_create_backup(request, slug):
             status=500,
         )
 
-    return JsonResponse({
-        "status": "success",
-        "backup": {
-            "id": record.pk,
-            "filename": record.filename,
-            "file_size": record.file_size,
-            "checksum": record.checksum,
-            "trigger": record.trigger,
-            "created_at": record.created_at.isoformat(),
-        },
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "backup": {
+                "id": record.pk,
+                "filename": record.filename,
+                "file_size": record.file_size,
+                "checksum": record.checksum,
+                "trigger": record.trigger,
+                "created_at": record.created_at.isoformat(),
+            },
+        }
+    )
 
 
 @require_POST
 def api_restore_backup(request, slug, backup_id):
     config = _get_config(slug)
     try:
-        backup = BackupRecord.objects.get(pk=backup_id, config=config)
+        BackupRecord.objects.get(pk=backup_id, config=config)
     except BackupRecord.DoesNotExist:
         return JsonResponse(
             {"status": "error", "message": "Backup not found"}, status=404
@@ -96,18 +103,20 @@ def api_restore_backup(request, slug, backup_id):
             status=500,
         )
 
-    return JsonResponse({
-        "status": "success",
-        "restore": {
-            "id": record.pk,
-            "backup_id": record.backup_id,
-            "safety_backup_id": record.safety_backup_id,
-            "files_restored": record.files_restored,
-            "container_restarted": record.container_restarted,
-            "restart_message": record.restart_message,
-            "created_at": record.created_at.isoformat(),
-        },
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "restore": {
+                "id": record.pk,
+                "backup_id": record.backup_id,
+                "safety_backup_id": record.safety_backup_id,
+                "files_restored": record.files_restored,
+                "container_restarted": record.container_restarted,
+                "restart_message": record.restart_message,
+                "created_at": record.created_at.isoformat(),
+            },
+        }
+    )
 
 
 @require_POST
@@ -141,10 +150,12 @@ def api_set_label(request, slug, backup_id):
         )
     backup.label = label
     backup.save(update_fields=["label"])
-    return JsonResponse({
-        "status": "success",
-        "backup": {"id": backup.pk, "label": backup.label},
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "backup": {"id": backup.pk, "label": backup.label},
+        }
+    )
 
 
 @require_POST
@@ -173,10 +184,12 @@ def api_set_notes(request, slug, backup_id):
         )
     backup.notes = notes
     backup.save(update_fields=["notes"])
-    return JsonResponse({
-        "status": "success",
-        "backup": {"id": backup.pk, "notes": backup.notes},
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "backup": {"id": backup.pk, "notes": backup.notes},
+        }
+    )
 
 
 @require_POST
@@ -190,10 +203,12 @@ def api_toggle_pin(request, slug, backup_id):
         )
     backup.is_pinned = not backup.is_pinned
     backup.save(update_fields=["is_pinned"])
-    return JsonResponse({
-        "status": "success",
-        "backup": {"id": backup.pk, "is_pinned": backup.is_pinned},
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "backup": {"id": backup.pk, "is_pinned": backup.is_pinned},
+        }
+    )
 
 
 @require_POST
@@ -233,12 +248,14 @@ def api_bulk_action(request, slug):
             except Exception as e:
                 errors.append(f"Backup {backup.pk}: {e}")
 
-    return JsonResponse({
-        "status": "success",
-        "action": action,
-        "affected": affected,
-        "errors": errors,
-    })
+    return JsonResponse(
+        {
+            "status": "success",
+            "action": action,
+            "affected": affected,
+            "errors": errors,
+        }
+    )
 
 
 @require_POST
@@ -260,7 +277,10 @@ def api_test_notification(request, slug):
     backends = get_configured_backends_objects(config)
     if not backends:
         return JsonResponse(
-            {"status": "error", "message": "No notification backends configured for this instance"},
+            {
+                "status": "error",
+                "message": "No notification backends configured for this instance",
+            },
             status=400,
         )
 
@@ -310,12 +330,15 @@ def api_test_connection(request, slug):
     try:
         flows_text, _ = fetch_remote_flows(config)
         import json
+
         flows = json.loads(flows_text)
         flow_count = len(flows) if isinstance(flows, list) else 0
-        return JsonResponse({
-            "status": "success",
-            "message": f"Connected successfully. Found {flow_count} flow objects.",
-        })
+        return JsonResponse(
+            {
+                "status": "success",
+                "message": f"Connected successfully. Found {flow_count} flow objects.",
+            }
+        )
     except http_requests.ConnectionError:
         return JsonResponse(
             {"status": "error", "message": f"Cannot connect to {config.nodered_url}"},
