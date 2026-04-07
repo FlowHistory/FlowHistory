@@ -17,8 +17,12 @@ _KNOWN_FIELDS = {
     "POLL_INTERVAL", "WATCH", "DEBOUNCE", "ALWAYS_BACKUP",
     "BACKUP_CREDENTIALS", "BACKUP_SETTINGS", "RESTART_ON_RESTORE",
     "CONTAINER_NAME",
-    # Notifications (DISCORD_WEBHOOK_URL is runtime-only, not stored in DB)
+    # Notifications (webhook URLs / tokens are runtime-only, not stored in DB)
     "NOTIFY", "NOTIFY_EVENTS", "DISCORD_WEBHOOK_URL",
+    "SLACK_WEBHOOK_URL",
+    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+    "PUSHBULLET_API_KEY",
+    "HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN",
 }
 
 _ENV_PATTERN = re.compile(

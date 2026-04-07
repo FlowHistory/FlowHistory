@@ -12,8 +12,18 @@ _backends = None
 def _discover_backends():
     """Import and instantiate all backend classes."""
     from backup.services.notifications.discord import DiscordBackend
+    from backup.services.notifications.slack import SlackBackend
+    from backup.services.notifications.telegram import TelegramBackend
+    from backup.services.notifications.pushbullet import PushbulletBackend
+    from backup.services.notifications.homeassistant import HomeAssistantBackend
 
-    return [DiscordBackend()]
+    return [
+        DiscordBackend(),
+        SlackBackend(),
+        TelegramBackend(),
+        PushbulletBackend(),
+        HomeAssistantBackend(),
+    ]
 
 
 def _get_backends():

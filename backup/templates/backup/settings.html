@@ -214,20 +214,9 @@
           {% endif %}
         </td>
       </tr>
-      <tr>
-        <th class="th-label">Discord {% include "backup/components/_tooltip.html" with text="Discord webhook URL. Set per-instance via _DISCORD_WEBHOOK_URL env var, or globally via FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL." %}</th>
-        <td class="px-4 py-2">
-          {% if discord_instance %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(instance)</span>
-          {% elif discord_global %}
-            <span class="text-green-600 dark:text-green-400">Configured</span>
-            <span class="ml-1 text-xs text-gray-400">(global)</span>
-          {% else %}
-            <span class="text-gray-400">Not configured</span>
-          {% endif %}
-        </td>
-      </tr>
+      {% for backend in notify_backend_status %}
+        {% include "backup/components/_notify_backend_row.html" %}
+      {% endfor %}
     </tbody>
   </table>
   {% if has_any_notification_backend %}

@@ -49,6 +49,13 @@ When an ADR implementation is complete:
 1. Update the ADR status from "Proposed" to "Implemented"
 2. Only commit and push **after the user has verified/tested** the feature is working
 
+## Environment Variables
+
+When adding new env vars, update all three places:
+1. `README.md` — per-instance table and (if applicable) the Notifications global table
+2. `backup/templates/backup/instance_add.html` — Add Instance UI
+3. `backup/services/discovery_service.py` — `_KNOWN_FIELDS` set
+
 ## Tailwind CSS Conventions
 
 - **Button styles**: Use shared CSS classes (`btn-primary`, `btn-secondary`, `btn-warning`, `btn-danger`) defined via `@apply` in `backup/static/backup/css/input.css`. Never inline the full Tailwind utility string for buttons — use the class instead.

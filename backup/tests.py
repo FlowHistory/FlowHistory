@@ -2128,6 +2128,270 @@ class DiscordBackendTest(TestCase):
         backend.send(self.config, payload)
 
 
+class SlackBackendTest(TestCase):
+    def setUp(self):
+        self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
+
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    def test_is_configured_with_instance_url(self):
+        from backup.services.notifications.slack import SlackBackend
+        backend = SlackBackend()
+        self.assertTrue(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_is_not_configured_without_url(self):
+        from backup.services.notifications.slack import SlackBackend
+        backend = SlackBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch("backup.services.notifications.slack.urlopen")
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    def test_send_posts_to_webhook(self, mock_urlopen):
+        from backup.services.notifications.slack import SlackBackend
+        backend = SlackBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_SUCCESS,
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#10B981",
+            title="Backup successful",
+            message="Created test.tar.gz",
+            filename="test.tar.gz",
+            file_size=2048,
+            trigger="manual",
+        )
+        backend.send(self.config, payload)
+
+        mock_urlopen.assert_called_once()
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.full_url, "https://hooks.slack.com/test")
+        body = json.loads(req.data)
+        self.assertIn("attachments", body)
+        attachment = body["attachments"][0]
+        self.assertIn("Backup successful", attachment["pretext"])
+        self.assertEqual(attachment["color"], "#10B981")
+        self.assertEqual(len(attachment["fields"]), 3)
+
+    @patch("backup.services.notifications.slack.urlopen")
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"})
+    def test_send_handles_failure(self, mock_urlopen):
+        from urllib.error import URLError
+        from backup.services.notifications.slack import SlackBackend
+        mock_urlopen.side_effect = URLError("Connection refused")
+        backend = SlackBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_FAILED,
+            instance_name="Test", instance_slug="test",
+            instance_color="#EF4444", title="Failed", message="Failed",
+        )
+        backend.send(self.config, payload)
+
+
+class TelegramBackendTest(TestCase):
+    def setUp(self):
+        self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
+
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+    })
+    def test_is_configured_with_both_fields(self):
+        from backup.services.notifications.telegram import TelegramBackend
+        backend = TelegramBackend()
+        self.assertTrue(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC"})
+    def test_is_not_configured_without_chat_id(self):
+        from backup.services.notifications.telegram import TelegramBackend
+        backend = TelegramBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_is_not_configured_without_any(self):
+        from backup.services.notifications.telegram import TelegramBackend
+        backend = TelegramBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch("backup.services.notifications.telegram.urlopen")
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+    })
+    def test_send_posts_to_api(self, mock_urlopen):
+        from backup.services.notifications.telegram import TelegramBackend
+        backend = TelegramBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_SUCCESS,
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#10B981",
+            title="Backup successful",
+            message="Created test.tar.gz",
+            filename="test.tar.gz",
+            file_size=2048,
+            trigger="manual",
+        )
+        backend.send(self.config, payload)
+
+        mock_urlopen.assert_called_once()
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.full_url, "https://api.telegram.org/bot123:ABC/sendMessage")
+        body = json.loads(req.data)
+        self.assertEqual(body["chat_id"], "456")
+        self.assertEqual(body["parse_mode"], "MarkdownV2")
+        self.assertIn("Backup successful", body["text"])
+
+    @patch("backup.services.notifications.telegram.urlopen")
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_TELEGRAM_BOT_TOKEN": "123:ABC",
+        "FLOWHISTORY_TEST_TELEGRAM_CHAT_ID": "456",
+    })
+    def test_send_handles_failure(self, mock_urlopen):
+        from urllib.error import URLError
+        from backup.services.notifications.telegram import TelegramBackend
+        mock_urlopen.side_effect = URLError("Connection refused")
+        backend = TelegramBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_FAILED,
+            instance_name="Test", instance_slug="test",
+            instance_color="#EF4444", title="Failed", message="Failed",
+        )
+        backend.send(self.config, payload)
+
+
+class PushbulletBackendTest(TestCase):
+    def setUp(self):
+        self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
+
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
+    def test_is_configured_with_api_key(self):
+        from backup.services.notifications.pushbullet import PushbulletBackend
+        backend = PushbulletBackend()
+        self.assertTrue(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_is_not_configured_without_key(self):
+        from backup.services.notifications.pushbullet import PushbulletBackend
+        backend = PushbulletBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch("backup.services.notifications.pushbullet.urlopen")
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
+    def test_send_posts_to_api(self, mock_urlopen):
+        from backup.services.notifications.pushbullet import PushbulletBackend
+        backend = PushbulletBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_SUCCESS,
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#10B981",
+            title="Backup successful",
+            message="Created test.tar.gz",
+            filename="test.tar.gz",
+            file_size=2048,
+            trigger="manual",
+        )
+        backend.send(self.config, payload)
+
+        mock_urlopen.assert_called_once()
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.full_url, "https://api.pushbullet.com/v2/pushes")
+        self.assertEqual(req.get_header("Access-token"), "o.abc123")
+        body = json.loads(req.data)
+        self.assertEqual(body["type"], "note")
+        self.assertIn("Backup successful", body["title"])
+        self.assertIn("Created test.tar.gz", body["body"])
+
+    @patch("backup.services.notifications.pushbullet.urlopen")
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_PUSHBULLET_API_KEY": "o.abc123"})
+    def test_send_handles_failure(self, mock_urlopen):
+        from urllib.error import URLError
+        from backup.services.notifications.pushbullet import PushbulletBackend
+        mock_urlopen.side_effect = URLError("Connection refused")
+        backend = PushbulletBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_FAILED,
+            instance_name="Test", instance_slug="test",
+            instance_color="#EF4444", title="Failed", message="Failed",
+        )
+        backend.send(self.config, payload)
+
+
+class HomeAssistantBackendTest(TestCase):
+    def setUp(self):
+        self.config = NodeRedConfig.objects.create(name="Test", env_prefix="TEST")
+
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+    })
+    def test_is_configured_with_both_fields(self):
+        from backup.services.notifications.homeassistant import HomeAssistantBackend
+        backend = HomeAssistantBackend()
+        self.assertTrue(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {"FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123"})
+    def test_is_not_configured_without_token(self):
+        from backup.services.notifications.homeassistant import HomeAssistantBackend
+        backend = HomeAssistantBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_is_not_configured_without_any(self):
+        from backup.services.notifications.homeassistant import HomeAssistantBackend
+        backend = HomeAssistantBackend()
+        self.assertFalse(backend.is_configured(self.config))
+
+    @patch("backup.services.notifications.homeassistant.urlopen")
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+    })
+    def test_send_posts_to_api(self, mock_urlopen):
+        from backup.services.notifications.homeassistant import HomeAssistantBackend
+        backend = HomeAssistantBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_SUCCESS,
+            instance_name="Test",
+            instance_slug="test",
+            instance_color="#10B981",
+            title="Backup successful",
+            message="Created test.tar.gz",
+            filename="test.tar.gz",
+            file_size=2048,
+            trigger="manual",
+        )
+        backend.send(self.config, payload)
+
+        mock_urlopen.assert_called_once()
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(
+            req.full_url,
+            "http://ha.local:8123/api/services/persistent_notification/create",
+        )
+        self.assertEqual(req.get_header("Authorization"), "Bearer eyJtoken")
+        body = json.loads(req.data)
+        self.assertIn("Backup successful", body["title"])
+        self.assertEqual(body["notification_id"], "flowhistory_test_backup_success")
+
+    @patch("backup.services.notifications.homeassistant.urlopen")
+    @patch.dict(os.environ, {
+        "FLOWHISTORY_TEST_HOMEASSISTANT_URL": "http://ha.local:8123",
+        "FLOWHISTORY_TEST_HOMEASSISTANT_TOKEN": "eyJtoken",
+    })
+    def test_send_handles_failure(self, mock_urlopen):
+        from urllib.error import URLError
+        from backup.services.notifications.homeassistant import HomeAssistantBackend
+        mock_urlopen.side_effect = URLError("Connection refused")
+        backend = HomeAssistantBackend()
+        payload = NotificationPayload(
+            event=NotifyEvent.BACKUP_FAILED,
+            instance_name="Test", instance_slug="test",
+            instance_color="#EF4444", title="Failed", message="Failed",
+        )
+        backend.send(self.config, payload)
+
+
 class BackupNotificationIntegrationTest(TempBackupDirMixin, TestCase):
     def setUp(self):
         super().setUp()

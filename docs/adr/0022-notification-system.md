@@ -1,7 +1,7 @@
 # ADR 0022: Notification System
 
 ## Status
-Accepted
+Implemented
 
 ## Context
 
@@ -414,17 +414,21 @@ Rejected. Backend configuration is entirely env-var-driven (webhook URLs are sec
 
 ## Todos
 
-- [ ] Create `backup/services/notifications/` package with ABC, dataclass, event constants
-- [ ] Implement Discord webhook backend
-- [ ] Create core notification service (dispatcher)
-- [ ] Add `notify_enabled` and `notify_events` fields to NodeRedConfig + migration
-- [ ] Add `get_notification_url()` method to NodeRedConfig
-- [ ] Update discovery service with `NOTIFY`, `NOTIFY_EVENTS`, `DISCORD_WEBHOOK_URL`
-- [ ] Hook into backup_service.py
-- [ ] Hook into restore_service.py
-- [ ] Hook into retention_service.py
-- [ ] Add Notifications section to settings UI with per-backend status + test button
-- [ ] Add test notification endpoint
-- [ ] Update .env.example with notification env vars
-- [ ] Update README.md with notification docs
-- [ ] Write tests
+- [x] Create `backup/services/notifications/` package with ABC, dataclass, event constants
+- [x] Implement Discord webhook backend
+- [x] Implement Slack webhook backend
+- [x] Implement Telegram Bot API backend
+- [x] Implement Pushbullet push backend
+- [x] Implement Home Assistant backend
+- [x] Create core notification service (dispatcher)
+- [x] Add `notify_enabled` and `notify_events` fields to NodeRedConfig + migration
+- [x] Add `get_notification_url()` method to NodeRedConfig
+- [x] Update discovery service with all backend env var fields
+- [x] Hook into backup_service.py
+- [x] Hook into restore_service.py
+- [x] Hook into retention_service.py
+- [x] Add Notifications section to settings UI with per-backend status + test button
+- [x] Add test notification endpoint
+- [x] Update .env.example with notification env vars
+- [x] Update README.md with notification docs
+- [x] Write tests

@@ -5,26 +5,21 @@ import logging
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-from backup.services.notifications.base import NotificationBackend, NotificationPayload, NotifyEvent
+from backup.services.notifications.base import (
+    EVENT_EMOJI, NotificationBackend, NotificationPayload, NotifyEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 10
 
-EVENT_COLORS = {
-    NotifyEvent.BACKUP_SUCCESS: 0x10B981,     # green
-    NotifyEvent.BACKUP_FAILED: 0xEF4444,      # red
-    NotifyEvent.RESTORE_SUCCESS: 0x3B82F6,    # blue
-    NotifyEvent.RESTORE_FAILED: 0xEF4444,     # red
-    NotifyEvent.RETENTION_CLEANUP: 0xF59E0B,  # amber
-}
-
-EVENT_EMOJI = {
-    NotifyEvent.BACKUP_SUCCESS: "\u2705",     # check mark
-    NotifyEvent.BACKUP_FAILED: "\u274c",      # cross mark
-    NotifyEvent.RESTORE_SUCCESS: "\u2705",
-    NotifyEvent.RESTORE_FAILED: "\u274c",
-    NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",  # broom
+# Discord embeds use integer color values
+DISCORD_COLORS = {
+    NotifyEvent.BACKUP_SUCCESS: 0x10B981,
+    NotifyEvent.BACKUP_FAILED: 0xEF4444,
+    NotifyEvent.RESTORE_SUCCESS: 0x3B82F6,
+    NotifyEvent.RESTORE_FAILED: 0xEF4444,
+    NotifyEvent.RETENTION_CLEANUP: 0xF59E0B,
 }
 
 
@@ -45,7 +40,7 @@ class DiscordBackend(NotificationBackend):
         embed = {
             "title": f"{emoji} {payload.title}" if emoji else payload.title,
             "description": payload.message,
-            "color": EVENT_COLORS.get(payload.event, 0x6B7280),
+            "color": DISCORD_COLORS.get(payload.event, 0x6B7280),
             "footer": {"text": f"FlowHistory \u2014 {payload.instance_name}"},
         }
 

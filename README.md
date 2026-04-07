@@ -16,7 +16,7 @@ A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker 
 - **Retention policies** — by max count and max age, with protection for pinned and recent safety backups
 - **Credentials and settings backup** — optionally include flows_cred.json and settings.js (local only)
 - **Labels and notes** — annotate backups with descriptions
-- **Notifications** — Discord webhook alerts for backup failures, restores, and more (extensible to Slack, Telegram, etc.)
+- **Notifications** — alerts via Discord, Slack, Telegram, Pushbullet, or Home Assistant for backup failures, restores, and more
 - **Dark mode** — with system preference detection and manual toggle
 - **Optional password auth** — simple shared password via environment variable
 - **Health check endpoint** — for Docker healthcheck integration
@@ -161,16 +161,32 @@ All instance settings use the `FLOWHISTORY_{PREFIX}_{FIELD}` convention. FlowHis
 | `_NOTIFY` | `true` | Enable notifications for this instance |
 | `_NOTIFY_EVENTS` | *(defaults)* | Comma-separated events, `all`, `none`, or blank for defaults |
 | `_DISCORD_WEBHOOK_URL` | | Per-instance Discord webhook URL (overrides global) |
+| `_SLACK_WEBHOOK_URL` | | Per-instance Slack webhook URL (overrides global) |
+| `_TELEGRAM_BOT_TOKEN` | | Per-instance Telegram bot token (overrides global) |
+| `_TELEGRAM_CHAT_ID` | | Per-instance Telegram chat ID (overrides global) |
+| `_PUSHBULLET_API_KEY` | | Per-instance Pushbullet API key (overrides global) |
+| `_HOMEASSISTANT_URL` | | Per-instance Home Assistant URL (overrides global) |
+| `_HOMEASSISTANT_TOKEN` | | Per-instance Home Assistant access token (overrides global) |
 
 ### Notifications
 
-Notification backend credentials use the `FLOWHISTORY_NOTIFY_{BACKEND}_{FIELD}` convention for global config. Per-instance overrides use the standard `FLOWHISTORY_{PREFIX}_{FIELD}` pattern.
+FlowHistory supports five notification backends: **Discord**, **Slack**, **Telegram**, **Pushbullet**, and **Home Assistant**. Each backend can be configured globally (applies to all instances) or per-instance (overrides the global value).
+
+**Global** variables use the `FLOWHISTORY_NOTIFY_` prefix and apply to every instance that doesn't have its own override:
 
 | Variable | Description |
 |----------|-------------|
-| `FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL` | Global Discord webhook (applies to all instances without their own) |
+| `FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL` | Discord incoming webhook URL |
+| `FLOWHISTORY_NOTIFY_SLACK_WEBHOOK_URL` | Slack incoming webhook URL |
+| `FLOWHISTORY_NOTIFY_TELEGRAM_BOT_TOKEN` | Telegram bot token (both token and chat ID required) |
+| `FLOWHISTORY_NOTIFY_TELEGRAM_CHAT_ID` | Telegram chat ID |
+| `FLOWHISTORY_NOTIFY_PUSHBULLET_API_KEY` | Pushbullet API key |
+| `FLOWHISTORY_NOTIFY_HOMEASSISTANT_URL` | Home Assistant URL (both URL and token required) |
+| `FLOWHISTORY_NOTIFY_HOMEASSISTANT_TOKEN` | Home Assistant long-lived access token |
 
-Webhook URLs are read from the environment at runtime and never stored in the database. Per-instance `_DISCORD_WEBHOOK_URL` takes priority over the global webhook.
+**Per-instance** overrides use the standard `FLOWHISTORY_{PREFIX}_` pattern (e.g. `FLOWHISTORY_LOCAL_DISCORD_WEBHOOK_URL`). When set, the per-instance value takes priority over the global one for that instance.
+
+All credentials are read from the environment at runtime and never stored in the database. Multiple backends can be active simultaneously — a single event will notify all configured backends.
 
 Default notification events: `backup_failed`, `restore_success`, `restore_failed`. Set `_NOTIFY_EVENTS=all` to receive all events, or `_NOTIFY_EVENTS=none` to silence an instance.
 

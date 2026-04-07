@@ -115,22 +115,45 @@ def instance_settings(request, slug):
     from .services.notification_service import get_configured_backends
     notification_backends = get_configured_backends(config)
 
-    # Check Discord config source (instance-specific vs global)
-    discord_instance = bool(
-        config.env_prefix
-        and os.environ.get(f"FLOWHISTORY_{config.env_prefix.upper()}_DISCORD_WEBHOOK_URL", "").strip()
-    )
-    discord_global = bool(
-        os.environ.get("FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL", "").strip()
-    )
+    # Check backend config sources (instance-specific vs global)
+    prefix = config.env_prefix.upper() if config.env_prefix else ""
+
+    def _check_backend(*env_fields):
+        """Return (instance_configured, global_configured) for backend env fields."""
+        inst = all(
+            prefix and os.environ.get(f"FLOWHISTORY_{prefix}_{f}", "").strip()
+            for f in env_fields
+        )
+        glob = all(
+            os.environ.get(f"FLOWHISTORY_NOTIFY_{f}", "").strip()
+            for f in env_fields
+        )
+        return inst, glob
+
+    notify_backend_status = []
+    _backends = [
+        ("Discord", "Discord webhook URL", ("DISCORD_WEBHOOK_URL",)),
+        ("Slack", "Slack incoming webhook URL", ("SLACK_WEBHOOK_URL",)),
+        ("Telegram", "Telegram bot token and chat ID", ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")),
+        ("Pushbullet", "Pushbullet API key", ("PUSHBULLET_API_KEY",)),
+        ("Home Assistant", "Home Assistant URL and long-lived access token", ("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN")),
+    ]
+    for label, description, env_fields in _backends:
+        inst_vars = " and ".join(f"FLOWHISTORY_{prefix}_{f}" for f in env_fields)
+        global_vars = " and ".join(f"FLOWHISTORY_NOTIFY_{f}" for f in env_fields)
+        tooltip = f"{description}. Set per-instance via {inst_vars}, or globally via {global_vars}."
+        inst, glob = _check_backend(*env_fields)
+        notify_backend_status.append({
+            "label": label, "tooltip": tooltip,
+            "is_instance": inst, "is_global": glob,
+        })
 
     return render(request, "backup/settings.html", {
         "config": config,
         "has_credentials": bool(username),
         "defaults": NodeRedConfig.get_field_defaults(),
         "notification_backends": notification_backends,
-        "discord_instance": discord_instance,
-        "discord_global": discord_global,
+        "notify_backend_status": notify_backend_status,
         "has_any_notification_backend": bool(notification_backends),
         "breadcrumb_items": [
             {"label": "Dashboard", "url": reverse("dashboard")},
