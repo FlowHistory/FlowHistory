@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  workflow_call: {}
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Write CI .env
+        run: |
+          cat > .env <<'EOF'
+          DEBUG=True
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          EOF
+
+      - name: Build image
+        run: docker compose build flowhistory
+
+      - name: Run Django tests
+        run: docker compose run --rm --no-deps --entrypoint python flowhistory manage.py test backup -v2
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v --remove-orphans

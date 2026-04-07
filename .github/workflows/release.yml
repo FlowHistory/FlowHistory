@@ -1,0 +1,47 @@
+name: Release — Tag Latest
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/flowhistory
+
+jobs:
+  tag-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.5
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Tag release as latest
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          echo "Tagging ${IMAGE_NAME}:${TAG} as ${IMAGE_NAME}:latest"
+          success=false
+          for i in 1 2 3 4 5; do
+            crane tag "${IMAGE_NAME}:${TAG}" latest && success=true && break
+            echo "Attempt $i failed, image may not be pushed yet."
+            [ "$i" -lt 5 ] && sleep 30
+          done
+
+          if [ "$success" = false ]; then
+            echo "Failed to tag after 5 attempts"
+            exit 1
+          fi
+
+          {
+            echo "### Docker Image"
+            echo ""
+            echo "| Tag | Pull command |"
+            echo "|-----|-------------|"
+            echo "| \`latest\` | \`docker pull ${IMAGE_NAME}:latest\` |"
+            echo "| \`${TAG}\` | \`docker pull ${IMAGE_NAME}:${TAG}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
