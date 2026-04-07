@@ -115,14 +115,26 @@ def instance_settings(request, slug):
     from .services.notification_service import get_configured_backends
     notification_backends = get_configured_backends(config)
 
-    # Check Discord config source (instance-specific vs global)
-    discord_instance = bool(
-        config.env_prefix
-        and os.environ.get(f"FLOWHISTORY_{config.env_prefix.upper()}_DISCORD_WEBHOOK_URL", "").strip()
-    )
-    discord_global = bool(
-        os.environ.get("FLOWHISTORY_NOTIFY_DISCORD_WEBHOOK_URL", "").strip()
-    )
+    # Check backend config sources (instance-specific vs global)
+    prefix = config.env_prefix.upper() if config.env_prefix else ""
+
+    def _check_backend(*env_fields):
+        """Return (instance_configured, global_configured) for backend env fields."""
+        inst = all(
+            prefix and os.environ.get(f"FLOWHISTORY_{prefix}_{f}", "").strip()
+            for f in env_fields
+        )
+        glob = all(
+            os.environ.get(f"FLOWHISTORY_NOTIFY_{f}", "").strip()
+            for f in env_fields
+        )
+        return inst, glob
+
+    discord_instance, discord_global = _check_backend("DISCORD_WEBHOOK_URL")
+    slack_instance, slack_global = _check_backend("SLACK_WEBHOOK_URL")
+    telegram_instance, telegram_global = _check_backend("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
+    pushbullet_instance, pushbullet_global = _check_backend("PUSHBULLET_API_KEY")
+    ha_instance, ha_global = _check_backend("HOMEASSISTANT_URL", "HOMEASSISTANT_TOKEN")
 
     return render(request, "backup/settings.html", {
         "config": config,
@@ -131,6 +143,14 @@ def instance_settings(request, slug):
         "notification_backends": notification_backends,
         "discord_instance": discord_instance,
         "discord_global": discord_global,
+        "slack_instance": slack_instance,
+        "slack_global": slack_global,
+        "telegram_instance": telegram_instance,
+        "telegram_global": telegram_global,
+        "pushbullet_instance": pushbullet_instance,
+        "pushbullet_global": pushbullet_global,
+        "ha_instance": ha_instance,
+        "ha_global": ha_global,
         "has_any_notification_backend": bool(notification_backends),
         "breadcrumb_items": [
             {"label": "Dashboard", "url": reverse("dashboard")},
