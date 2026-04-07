@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/instance/<slug:slug>/backup/<int:backup_id>/pin/", views.api_toggle_pin, name="api_toggle_pin"),
     path("api/instance/<slug:slug>/bulk/", views.api_bulk_action, name="api_bulk_action"),
     path("api/instance/<slug:slug>/restore/<int:backup_id>/", views.api_restore_backup, name="api_restore_backup"),
+    path("api/instance/<slug:slug>/clear-error/", views.api_clear_error, name="api_clear_error"),
     path("api/instance/<slug:slug>/test-connection/", views.api_test_connection, name="api_test_connection"),
     path("api/instance/<slug:slug>/notifications/test/", views.api_test_notification, name="api_test_notification"),
 

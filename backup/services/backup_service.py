@@ -46,7 +46,14 @@ def create_backup(config, trigger="manual", flows_data=None):
     else:
         flows_path = Path(config.flows_path)
         if not flows_path.is_file():
-            return _fail(config, filename, dest, trigger, f"flows.json not found at {flows_path}")
+            if not flows_path.parent.exists():
+                msg = (
+                    f"Directory {flows_path.parent} does not exist"
+                    f" — is the volume mounted?"
+                )
+            else:
+                msg = f"flows.json not found at {flows_path}"
+            return _fail(config, filename, dest, trigger, msg)
         flows_bytes = flows_path.read_bytes()
         is_local = True
 

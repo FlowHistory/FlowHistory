@@ -92,6 +92,19 @@ function getCsrfToken() {
   return document.querySelector('meta[name="csrf-token"]').content;
 }
 
+// Dismiss error banner
+function dismissError() {
+  var banner = document.getElementById('error-banner');
+  if (banner) banner.remove();
+  var slug = location.pathname.match(/\/instance\/([^/]+)\//);
+  if (slug) {
+    fetch('/api/instance/' + slug[1] + '/clear-error/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+    });
+  }
+}
+
 // Create backup
 function createBackup() {
   var btn = document.getElementById('btn-backup');

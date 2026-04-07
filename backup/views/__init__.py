@@ -4,7 +4,7 @@ from .pages import (
 )
 from .backups import backup_detail, backup_download, backup_delete, diff_view
 from .api import (
-    api_create_backup, api_restore_backup, api_set_label,
+    api_create_backup, api_clear_error, api_restore_backup, api_set_label,
     api_set_notes, api_toggle_pin, api_bulk_action,
     api_test_notification, api_test_connection,
 )

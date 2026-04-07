@@ -63,7 +63,7 @@ class BackupServiceTest(TempBackupDirMixin, TestCase):
         record = create_backup(config=self.config, trigger="manual")
         self.assertIsNotNone(record)
         self.assertEqual(record.status, "failed")
-        self.assertIn("not found", record.error_message)
+        self.assertIn("does not exist", record.error_message)
 
     def test_dedup_skips_for_scheduled(self):
         create_backup(config=self.config, trigger="manual")
