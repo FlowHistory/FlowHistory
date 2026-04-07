@@ -96,9 +96,9 @@ function getCsrfToken() {
 function dismissError() {
   var banner = document.getElementById('error-banner');
   if (banner) banner.remove();
-  var slug = location.pathname.match(/\/instance\/([^/]+)\//);
-  if (slug) {
-    fetch('/api/instance/' + slug[1] + '/clear-error/', {
+  var apiBase = getApiBase();
+  if (apiBase) {
+    fetch(apiBase + 'clear-error/', {
       method: 'POST',
       headers: { 'X-CSRFToken': getCsrfToken() },
     });

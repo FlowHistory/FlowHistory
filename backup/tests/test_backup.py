@@ -57,13 +57,22 @@ class BackupServiceTest(TempBackupDirMixin, TestCase):
         self.assertIsNotNone(self.config.last_successful_backup)
         self.assertEqual(self.config.last_backup_error, "")
 
-    def test_missing_flows_returns_failed_record(self):
+    def test_missing_directory_returns_volume_error(self):
         self.config.flows_path = "/nonexistent/flows.json"
         self.config.save()
         record = create_backup(config=self.config, trigger="manual")
         self.assertIsNotNone(record)
         self.assertEqual(record.status, "failed")
         self.assertIn("does not exist", record.error_message)
+        self.assertIn("volume mounted", record.error_message)
+
+    def test_missing_file_in_existing_dir_returns_not_found(self):
+        self.config.flows_path = str(self.backup_dir / "missing_flows.json")
+        self.config.save()
+        record = create_backup(config=self.config, trigger="manual")
+        self.assertIsNotNone(record)
+        self.assertEqual(record.status, "failed")
+        self.assertIn("not found", record.error_message)
 
     def test_dedup_skips_for_scheduled(self):
         create_backup(config=self.config, trigger="manual")

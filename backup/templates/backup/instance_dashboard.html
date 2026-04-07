@@ -17,7 +17,7 @@
 {% if config.last_backup_error %}
 <div id="error-banner" class="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200" role="alert">
   <span>{{ config.last_backup_error }}</span>
-  <button onclick="dismissError()" class="ml-4 text-red-600 hover:text-red-800 dark:text-red-300 dark:hover:text-red-100" title="Dismiss">&times;</button>
+  <button type="button" onclick="dismissError()" class="ml-4 text-red-600 hover:text-red-800 dark:text-red-300 dark:hover:text-red-100" title="Dismiss" aria-label="Dismiss error">&times;</button>
 </div>
 {% endif %}
 
