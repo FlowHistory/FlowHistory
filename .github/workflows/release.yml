@@ -11,6 +11,10 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/flowhistory
 
+# NOTE: github.repository_owner may contain uppercase letters but OCI
+# references must be lowercase.  The docker/* actions handle this
+# internally; crane does not, so we lowercase in the shell below.
+
 jobs:
   tag-latest:
     runs-on: ubuntu-latest
@@ -23,11 +27,12 @@ jobs:
 
       - name: Tag release as latest
         run: |
+          IMAGE="${IMAGE_NAME,,}"
           TAG="${{ github.event.release.tag_name }}"
-          echo "Tagging ${IMAGE_NAME}:${TAG} as ${IMAGE_NAME}:latest"
+          echo "Tagging ${IMAGE}:${TAG} as ${IMAGE}:latest"
           success=false
           for i in 1 2 3 4 5; do
-            crane tag "${IMAGE_NAME}:${TAG}" latest && success=true && break
+            crane tag "${IMAGE}:${TAG}" latest && success=true && break
             echo "Attempt $i failed, image may not be pushed yet."
             [ "$i" -lt 5 ] && sleep 30
           done
@@ -42,6 +47,6 @@ jobs:
             echo ""
             echo "| Tag | Pull command |"
             echo "|-----|-------------|"
-            echo "| \`latest\` | \`docker pull ${IMAGE_NAME}:latest\` |"
-            echo "| \`${TAG}\` | \`docker pull ${IMAGE_NAME}:${TAG}\` |"
+            echo "| \`latest\` | \`docker pull ${IMAGE}:latest\` |"
+            echo "| \`${TAG}\` | \`docker pull ${IMAGE}:${TAG}\` |"
           } >> "$GITHUB_STEP_SUMMARY"

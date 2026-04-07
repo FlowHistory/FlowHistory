@@ -39,9 +39,12 @@ jobs:
           fi
 
           echo "Deleting version ${VERSION_ID} (tag: ${TAG})"
-          gh api --method DELETE \
+          if ! gh api --method DELETE \
             "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" 2>/dev/null \
-          || gh api --method DELETE \
-            "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}"
+          && ! gh api --method DELETE \
+            "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" 2>/dev/null; then
+            echo "::warning::Could not delete ${TAG} (it may be the last tagged version — delete the package manually if needed)"
+            exit 0
+          fi
 
           echo "Deleted ${TAG}"
