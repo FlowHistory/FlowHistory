@@ -4,25 +4,24 @@ on:
   workflow_call: {}
 
 jobs:
-  backend-tests:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+      - uses: ljmerza/misc-actions/actions/ruff-lint@v1
+        with:
+          python-version: "3.13"
 
-      - name: Write CI .env
-        run: |
-          cat > .env <<'EOF'
-          DEBUG=True
-          ALLOWED_HOSTS=localhost,127.0.0.1
-          EOF
-
-      - name: Build image
-        run: docker compose build flowhistory
-
-      - name: Run Django tests
-        run: docker compose run --rm --no-deps --entrypoint python flowhistory manage.py test backup -v2
-
-      - name: Cleanup
-        if: always()
-        run: docker compose down -v --remove-orphans
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ljmerza/misc-actions/actions/python-test@v1
+        with:
+          python-version: "3.13"
+          coverage-source: backup
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          env-vars: |
+            SECRET_KEY=test-secret-key-for-ci
+            DEBUG=True
+            ALLOWED_HOSTS=localhost,127.0.0.1
