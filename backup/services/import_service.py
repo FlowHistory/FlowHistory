@@ -50,48 +50,53 @@ def validate_import_archive(uploaded_file):
     # 3. Read into memory and open as tar.gz
     raw = uploaded_file.read()
     try:
-        tar = tarfile.open(fileobj=BytesIO(raw), mode="r:gz")
+        with tarfile.open(fileobj=BytesIO(raw), mode="r:gz") as tar:
+            members = tar.getmembers()
+            member_names = {m.name for m in members}
+
+            # 4. Must contain flows.json
+            if "flows.json" not in member_names:
+                raise ImportValidationError(
+                    "Archive must contain flows.json"
+                )
+
+            # 5. No unexpected files
+            unexpected = member_names - _ALLOWED_MEMBERS
+            if unexpected:
+                raise ImportValidationError(
+                    "Archive contains unexpected files: "
+                    f"{', '.join(sorted(unexpected))}"
+                )
+
+            # 6. No symlinks or hardlinks
+            for m in members:
+                if m.issym() or m.islnk():
+                    raise ImportValidationError(
+                        "Archive contains symbolic or hard links"
+                    )
+
+            # 7. No path traversal
+            for m in members:
+                if ".." in m.name or m.name.startswith("/"):
+                    raise ImportValidationError(
+                        "Archive contains path traversal"
+                    )
+
+            # Extract all members into a dict
+            contents = {}
+            for m in members:
+                f = tar.extractfile(m)
+                if f is None:
+                    raise ImportValidationError(
+                        f"Cannot read {m.name} from archive"
+                    )
+                contents[m.name] = f.read()
+    except ImportValidationError:
+        raise
     except (tarfile.TarError, EOFError, OSError) as exc:
         raise ImportValidationError(
             "File is not a valid tar.gz archive"
         ) from exc
-
-    with tar:
-        members = tar.getmembers()
-        member_names = {m.name for m in members}
-
-        # 4. Must contain flows.json
-        if "flows.json" not in member_names:
-            raise ImportValidationError("Archive must contain flows.json")
-
-        # 5. No unexpected files
-        unexpected = member_names - _ALLOWED_MEMBERS
-        if unexpected:
-            raise ImportValidationError(
-                f"Archive contains unexpected files: {', '.join(sorted(unexpected))}"
-            )
-
-        # 6. No symlinks or hardlinks
-        for m in members:
-            if m.issym() or m.islnk():
-                raise ImportValidationError(
-                    "Archive contains symbolic or hard links"
-                )
-
-        # 7. No path traversal
-        for m in members:
-            if ".." in m.name or m.name.startswith("/"):
-                raise ImportValidationError("Archive contains path traversal")
-
-        # Extract all members into a dict
-        contents = {}
-        for m in members:
-            f = tar.extractfile(m)
-            if f is None:
-                raise ImportValidationError(
-                    f"Cannot read {m.name} from archive"
-                )
-            contents[m.name] = f.read()
 
     # 8. flows.json must be valid JSON array
     flows_bytes = contents["flows.json"]
