@@ -2,10 +2,9 @@ import json
 import logging
 from pathlib import Path
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-
-from django.conf import settings
 
 from ..models import BackupRecord
 from ..services.backup_service import create_backup
@@ -92,9 +91,9 @@ def api_import_backup(request, slug):
         )
     if uploaded.size > settings.IMPORT_MAX_SIZE:
         max_mb = settings.IMPORT_MAX_SIZE // (1024 * 1024)
+        msg = f"Archive exceeds maximum size of {max_mb} MB"
         return JsonResponse(
-            {"status": "error", "message": f"Archive exceeds maximum size of {max_mb} MB"},
-            status=413,
+            {"status": "error", "message": msg}, status=413
         )
     label = request.POST.get("label", "")
     notes = request.POST.get("notes", "")

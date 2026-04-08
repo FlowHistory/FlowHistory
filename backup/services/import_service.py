@@ -51,8 +51,10 @@ def validate_import_archive(uploaded_file):
     raw = uploaded_file.read()
     try:
         tar = tarfile.open(fileobj=BytesIO(raw), mode="r:gz")
-    except (tarfile.TarError, EOFError, OSError):
-        raise ImportValidationError("File is not a valid tar.gz archive")
+    except (tarfile.TarError, EOFError, OSError) as exc:
+        raise ImportValidationError(
+            "File is not a valid tar.gz archive"
+        ) from exc
 
     with tar:
         members = tar.getmembers()
@@ -98,8 +100,10 @@ def validate_import_archive(uploaded_file):
 
     try:
         flows_data = json.loads(flows_bytes)
-    except (json.JSONDecodeError, ValueError):
-        raise ImportValidationError("flows.json is not valid JSON")
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ImportValidationError(
+            "flows.json is not valid JSON"
+        ) from exc
 
     if not isinstance(flows_data, list):
         raise ImportValidationError("flows.json must be a JSON array")

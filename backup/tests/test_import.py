@@ -141,7 +141,9 @@ class ImportServiceTest(TempBackupDirMixin, TestCase):
         self.assertNotEqual(record1.pk, record2.pk)
 
     def test_reject_non_tar_gz(self):
-        upload = SimpleUploadedFile("backup.txt", b"not a tar", content_type="text/plain")
+        upload = SimpleUploadedFile(
+            "backup.txt", b"not a tar", content_type="text/plain"
+        )
         with self.assertRaises(ImportValidationError) as ctx:
             import_backup(self.config, upload)
         self.assertIn(".tar.gz", str(ctx.exception))
@@ -272,7 +274,9 @@ class ApiImportBackupTest(TempBackupDirMixin, TestCase):
         self.assertIn("No archive", resp.json()["message"])
 
     def test_invalid_archive_returns_400(self):
-        upload = SimpleUploadedFile("bad.tar.gz", b"not a tar", content_type="application/gzip")
+        upload = SimpleUploadedFile(
+            "bad.tar.gz", b"not a tar", content_type="application/gzip"
+        )
         resp = self.client.post(self.url, data={"archive": upload})
         self.assertEqual(resp.status_code, 400)
 
