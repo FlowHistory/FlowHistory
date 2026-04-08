@@ -9,10 +9,13 @@ All commands run inside the Docker container. Never use local `python`, `uv run`
 **Always rebuild the container** (`docker compose up -d --build`) after making code changes before testing in the browser.
 
 ### Build & Run
+
+The production container runs from `~/docker/docker-compose.home.yml`. Always use that compose file for build/run/stop — never use the local `docker-compose.yml` directly.
+
 ```bash
-docker compose up -d --build    # Rebuild and restart
-docker compose logs --tail=50   # View logs
-docker compose down             # Stop
+docker compose -f ~/docker/docker-compose.home.yml up -d --build flowhistory   # Rebuild and restart
+docker compose -f ~/docker/docker-compose.home.yml logs flowhistory --tail=50   # View logs
+docker compose -f ~/docker/docker-compose.home.yml down flowhistory             # Stop
 ```
 
 ### Tests
