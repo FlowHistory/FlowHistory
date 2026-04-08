@@ -5,8 +5,11 @@ from pathlib import Path
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
+from django.conf import settings
+
 from ..models import BackupRecord
 from ..services.backup_service import create_backup
+from ..services.import_service import ImportValidationError, import_backup
 from ..services.restore_service import restore_backup
 from .pages import _get_config
 
@@ -74,6 +77,53 @@ def api_create_backup(request, slug):
                 "checksum": record.checksum,
                 "trigger": record.trigger,
                 "created_at": record.created_at.isoformat(),
+            },
+        }
+    )
+
+
+@require_POST
+def api_import_backup(request, slug):
+    config = _get_config(slug)
+    uploaded = request.FILES.get("archive")
+    if not uploaded:
+        return JsonResponse(
+            {"status": "error", "message": "No archive file provided"}, status=400
+        )
+    if uploaded.size > settings.IMPORT_MAX_SIZE:
+        max_mb = settings.IMPORT_MAX_SIZE // (1024 * 1024)
+        return JsonResponse(
+            {"status": "error", "message": f"Archive exceeds maximum size of {max_mb} MB"},
+            status=413,
+        )
+    label = request.POST.get("label", "")
+    notes = request.POST.get("notes", "")
+    try:
+        record, duplicate_warning = import_backup(
+            config, uploaded, label=label, notes=notes
+        )
+    except ImportValidationError as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    except Exception:
+        logger.exception("Unexpected error importing backup")
+        return JsonResponse(
+            {"status": "error", "message": "Internal error during import"}, status=500
+        )
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Backup imported successfully",
+            "backup": {
+                "id": record.pk,
+                "filename": record.filename,
+                "file_size": record.file_size,
+                "checksum": record.checksum,
+                "trigger": record.trigger,
+                "created_at": record.created_at.isoformat(),
+                "tab_summary": record.tab_summary,
+                "includes_credentials": record.includes_credentials,
+                "includes_settings": record.includes_settings,
+                "duplicate_warning": duplicate_warning,
             },
         }
     )

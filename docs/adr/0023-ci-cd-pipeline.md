@@ -1,7 +1,7 @@
 # ADR 0023: CI/CD Pipeline with GitHub Actions
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 

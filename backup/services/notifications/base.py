@@ -13,6 +13,8 @@ class NotifyEvent:
     RESTORE_SUCCESS = "restore_success"
     RESTORE_FAILED = "restore_failed"
     RETENTION_CLEANUP = "retention_cleanup"
+    IMPORT_SUCCESS = "import_success"
+    IMPORT_FAILED = "import_failed"
 
     ALL = {
         BACKUP_SUCCESS,
@@ -20,6 +22,8 @@ class NotifyEvent:
         RESTORE_SUCCESS,
         RESTORE_FAILED,
         RETENTION_CLEANUP,
+        IMPORT_SUCCESS,
+        IMPORT_FAILED,
     }
 
     DEFAULT = ALL
@@ -31,6 +35,8 @@ EVENT_EMOJI = {
     NotifyEvent.RESTORE_SUCCESS: "\u2705",
     NotifyEvent.RESTORE_FAILED: "\u274c",
     NotifyEvent.RETENTION_CLEANUP: "\U0001f9f9",  # broom
+    NotifyEvent.IMPORT_SUCCESS: "\U0001f4e5",  # inbox tray
+    NotifyEvent.IMPORT_FAILED: "\u274c",  # cross mark
 }
 
 EVENT_COLORS = {
@@ -39,6 +45,8 @@ EVENT_COLORS = {
     NotifyEvent.RESTORE_SUCCESS: "#3B82F6",  # blue
     NotifyEvent.RESTORE_FAILED: "#EF4444",  # red
     NotifyEvent.RETENTION_CLEANUP: "#F59E0B",  # amber
+    NotifyEvent.IMPORT_SUCCESS: "#10B981",  # green
+    NotifyEvent.IMPORT_FAILED: "#EF4444",  # red
 }
 
 

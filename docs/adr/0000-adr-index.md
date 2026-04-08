@@ -17,7 +17,7 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [0001](0001-nodered-backup-architecture.md) | FlowHistory Application Architecture | **Partially Implemented** |
+| [0001](0001-nodered-backup-architecture.md) | FlowHistory Application Architecture | **Implemented** |
 | [0002](0002-django-app-bootstrapping.md) | Django App Bootstrapping | **Implemented** |
 | [0003](0003-dockerization-and-basic-auth.md) | Dockerization and Basic Auth | **Implemented** |
 | [0004](0004-backup-service-and-flow-parser.md) | Backup Service and Flow Parser | **Implemented** |
@@ -41,3 +41,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0022](0022-notification-system.md) | Notification System | **Implemented** |
 | [0023](0023-ci-cd-pipeline.md) | CI/CD Pipeline with GitHub Actions | **Implemented** |
 | [0024](0024-views-and-tests-refactor.md) | Split views.py and tests.py into Packages | **Implemented** |
+| [0025](0025-backup-import-upload.md) | Backup Import/Upload | **Proposed** |

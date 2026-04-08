@@ -11,7 +11,10 @@
     {% include "backup/components/_badge.html" with text="Remote" variant="info" %}
     {% endif %}
   </div>
-  <button class="btn-primary" id="btn-backup" data-url="{% url 'api_create_backup' config.slug %}" onclick="createBackup()">Create Backup</button>
+  <div class="flex items-center gap-2">
+    <button class="btn-secondary" onclick="importBackup()">Import Backup</button>
+    <button class="btn-primary" id="btn-backup" data-url="{% url 'api_create_backup' config.slug %}" onclick="createBackup()">Create Backup</button>
+  </div>
 </div>
 
 {% if config.last_backup_error %}

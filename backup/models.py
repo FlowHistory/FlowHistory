@@ -165,6 +165,7 @@ class BackupRecord(models.Model):
         ("scheduled", "Scheduled"),
         ("file_change", "File Change"),
         ("pre_restore", "Pre-Restore Safety"),
+        ("import", "Import"),
     ]
     STATUS_CHOICES = [
         ("success", "Success"),

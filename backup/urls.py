@@ -47,6 +47,11 @@ urlpatterns = [
         name="api_create_backup",
     ),
     path(
+        "api/instance/<slug:slug>/import/",
+        views.api_import_backup,
+        name="api_import_backup",
+    ),
+    path(
         "api/instance/<slug:slug>/backup/<int:backup_id>/label/",
         views.api_set_label,
         name="api_set_label",
