@@ -159,7 +159,7 @@ All instance settings use the `FLOWHISTORY_{PREFIX}_{FIELD}` convention. FlowHis
 | `_CONTAINER_NAME` | `nodered` | Docker container name for restart (local) |
 | `_COLOR` | Auto-assigned | Hex color for UI accent (e.g., `#3B82F6`) |
 | `_NOTIFY` | `true` | Enable notifications for this instance |
-| `_NOTIFY_EVENTS` | *(defaults)* | Comma-separated events, `all`, `none`, or blank for defaults |
+| `_NOTIFY_EVENTS` | `all` | Comma-separated events, `all`, `none`, or blank for all |
 | `_DISCORD_WEBHOOK_URL` | | Per-instance Discord webhook URL (overrides global) |
 | `_SLACK_WEBHOOK_URL` | | Per-instance Slack webhook URL (overrides global) |
 | `_TELEGRAM_BOT_TOKEN` | | Per-instance Telegram bot token (overrides global) |
@@ -188,7 +188,7 @@ FlowHistory supports five notification backends: **Discord**, **Slack**, **Teleg
 
 All credentials are read from the environment at runtime and never stored in the database. Multiple backends can be active simultaneously — a single event will notify all configured backends.
 
-Default notification events: `backup_failed`, `restore_success`, `restore_failed`. Set `_NOTIFY_EVENTS=all` to receive all events, or `_NOTIFY_EVENTS=none` to silence an instance.
+By default all events are enabled. Available events: `backup_success`, `backup_failed`, `restore_success`, `restore_failed`, `retention_cleanup`. Set `_NOTIFY_EVENTS=none` to silence an instance, or provide a comma-separated list to choose specific events (e.g., `_NOTIFY_EVENTS=backup_failed,restore_failed`).
 
 Env vars seed the database on first creation only. To re-apply env var values to existing instances, run:
 
