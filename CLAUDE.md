@@ -10,12 +10,12 @@ All commands run inside the Docker container. Never use local `python`, `uv run`
 
 ### Build & Run
 
-The production container runs from `~/docker/docker-compose.home.yml`. Always use that compose file for build/run/stop — never use the local `docker-compose.yml` directly.
+Use `dca` (alias for `~/docker/bin/dcwrap`, use full path in Bash tool) to manage the production container. It's a docker compose wrapper that stitches split stack files from `~/docker/`. Never use the local `docker-compose.yml` directly.
 
 ```bash
-docker compose -f ~/docker/docker-compose.home.yml up -d --build flowhistory   # Rebuild and restart
-docker compose -f ~/docker/docker-compose.home.yml logs flowhistory --tail=50   # View logs
-docker compose -f ~/docker/docker-compose.home.yml down flowhistory             # Stop
+dca up -d --build flowhistory   # Rebuild and restart
+dca logs flowhistory --tail=50   # View logs
+dca down flowhistory             # Stop
 ```
 
 ### Tests

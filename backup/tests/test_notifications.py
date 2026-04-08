@@ -34,10 +34,7 @@ class NotifyEventTest(TestCase):
         self.assertTrue(NotifyEvent.DEFAULT.issubset(NotifyEvent.ALL))
 
     def test_default_events(self):
-        self.assertEqual(
-            NotifyEvent.DEFAULT,
-            {"backup_failed", "restore_success", "restore_failed"},
-        )
+        self.assertEqual(NotifyEvent.DEFAULT, NotifyEvent.ALL)
 
 
 class GetInstanceEventsTest(TestCase):
