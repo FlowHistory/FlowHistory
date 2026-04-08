@@ -11,8 +11,14 @@ from backup.services.import_service import ImportValidationError, import_backup
 from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 
 
-def create_test_archive(flows=None, include_creds=False, include_settings=False,
-                        extra_files=None, add_symlink=False, add_path_traversal=False):
+def create_test_archive(
+    flows=None,
+    include_creds=False,
+    include_settings=False,
+    extra_files=None,
+    add_symlink=False,
+    add_path_traversal=False,
+):
     """Build an in-memory .tar.gz archive for testing.
 
     Args:
@@ -42,7 +48,7 @@ def create_test_archive(flows=None, include_creds=False, include_settings=False,
             tar.addfile(info, io.BytesIO(cred_bytes))
 
         if include_settings:
-            settings_bytes = b'module.exports = {};'
+            settings_bytes = b"module.exports = {};"
             info = tarfile.TarInfo(name="settings.js")
             info.size = len(settings_bytes)
             tar.addfile(info, io.BytesIO(settings_bytes))
@@ -126,8 +132,7 @@ class ImportServiceTest(TempBackupDirMixin, TestCase):
     def test_label_and_notes_saved(self):
         archive = create_test_archive()
         record, _ = import_backup(
-            self.config, make_upload(archive),
-            label="Migrated", notes="From server-2"
+            self.config, make_upload(archive), label="Migrated", notes="From server-2"
         )
         self.assertEqual(record.label, "Migrated")
         self.assertEqual(record.notes, "From server-2")

@@ -56,9 +56,7 @@ def validate_import_archive(uploaded_file):
 
             # 4. Must contain flows.json
             if "flows.json" not in member_names:
-                raise ImportValidationError(
-                    "Archive must contain flows.json"
-                )
+                raise ImportValidationError("Archive must contain flows.json")
 
             # 5. No unexpected files
             unexpected = member_names - _ALLOWED_MEMBERS
@@ -78,25 +76,19 @@ def validate_import_archive(uploaded_file):
             # 7. No path traversal
             for m in members:
                 if ".." in m.name or m.name.startswith("/"):
-                    raise ImportValidationError(
-                        "Archive contains path traversal"
-                    )
+                    raise ImportValidationError("Archive contains path traversal")
 
             # Extract all members into a dict
             contents = {}
             for m in members:
                 f = tar.extractfile(m)
                 if f is None:
-                    raise ImportValidationError(
-                        f"Cannot read {m.name} from archive"
-                    )
+                    raise ImportValidationError(f"Cannot read {m.name} from archive")
                 contents[m.name] = f.read()
     except ImportValidationError:
         raise
     except (tarfile.TarError, EOFError, OSError) as exc:
-        raise ImportValidationError(
-            "File is not a valid tar.gz archive"
-        ) from exc
+        raise ImportValidationError("File is not a valid tar.gz archive") from exc
 
     # 8. flows.json must be valid JSON array
     flows_bytes = contents["flows.json"]
@@ -106,9 +98,7 @@ def validate_import_archive(uploaded_file):
     try:
         flows_data = json.loads(flows_bytes)
     except (json.JSONDecodeError, ValueError) as exc:
-        raise ImportValidationError(
-            "flows.json is not valid JSON"
-        ) from exc
+        raise ImportValidationError("flows.json is not valid JSON") from exc
 
     if not isinstance(flows_data, list):
         raise ImportValidationError("flows.json must be a JSON array")
@@ -180,9 +170,7 @@ def import_backup(config, uploaded_file, label="", notes=""):
     except (json.JSONDecodeError, TypeError):
         current_parsed = None
 
-    tab_summary = (
-        [t["label"] for t in current_parsed["tabs"]] if current_parsed else []
-    )
+    tab_summary = [t["label"] for t in current_parsed["tabs"]] if current_parsed else []
 
     # Compute changes against last backup
     last = (
