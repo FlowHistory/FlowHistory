@@ -5,7 +5,7 @@ services:
       - "9473:8000"
     environment:
       - DEBUG=true
-      - ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.76
-      - TIME_ZONE=America/New_York
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - TIME_ZONE=${TIME_ZONE:-UTC}
       - REQUIRE_AUTH=false
     restart: unless-stopped
