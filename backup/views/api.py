@@ -142,6 +142,7 @@ def _notify_import_failed(config, archive_name, error_message):
             instance_color=config.color,
             title=f"Backup import failed \u2014 {config.name}",
             message=archive_name or "unknown file",
+            filename=archive_name,
             error=error_message,
             trigger="import",
         )
