@@ -44,7 +44,19 @@
   </main>
 
   <footer class="border-t border-gray-200 px-4 py-3 dark:border-gray-800">
-    <small class="text-gray-500 dark:text-gray-400">FlowHistory v{{ app_version }}</small>
+    <small class="text-gray-500 dark:text-gray-400">
+      {% if build_repo %}<a href="https://github.com/{{ build_repo }}" class="hover:text-gray-700 dark:hover:text-gray-200 underline" target="_blank" rel="noopener noreferrer">FlowHistory</a>{% else %}FlowHistory{% endif %}
+      v{{ app_version }}
+      {% if git_commit_short %}
+        &middot;
+        {% if build_repo and git_commit_short != "dev" %}
+          <a href="https://github.com/{{ build_repo }}/commit/{{ git_commit_short }}" class="hover:text-gray-700 dark:hover:text-gray-200 underline" target="_blank" rel="noopener noreferrer">{{ git_commit_short }}</a>
+        {% else %}
+          {{ git_commit_short }}
+        {% endif %}
+      {% endif %}
+      {% if build_date %}&middot; {{ build_date }}{% endif %}
+    </small>
   </footer>
 
   <script src="{% static 'backup/js/app.js' %}"></script>
