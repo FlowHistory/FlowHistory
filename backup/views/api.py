@@ -93,6 +93,7 @@ def api_import_backup(request, slug):
     if uploaded.size > settings.IMPORT_MAX_SIZE:
         max_mb = settings.IMPORT_MAX_SIZE // (1024 * 1024)
         msg = f"Archive exceeds maximum size of {max_mb} MB"
+        _notify_import_failed(config, uploaded.name, msg)
         return JsonResponse({"status": "error", "message": msg}, status=413)
     label = request.POST.get("label", "")
     notes = request.POST.get("notes", "")

@@ -463,7 +463,14 @@ function importBackup() {
       headers: { 'X-CSRFToken': getCsrfToken() },
       body: formData,
     })
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      if (!r.ok && !(r.headers.get('content-type') || '').includes('application/json')) {
+        return r.text().then(function (text) {
+          return { status: 'error', message: text || 'Upload failed (HTTP ' + r.status + ')' };
+        });
+      }
+      return r.json();
+    })
     .then(function (data) {
       if (data.status === 'success') {
         close();

@@ -1,6 +1,7 @@
 import io
 import json
 import tarfile
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -8,6 +9,7 @@ from django.test import TestCase, override_settings
 from backup.models import BackupRecord, NodeRedConfig
 from backup.services.backup_service import create_backup
 from backup.services.import_service import ImportValidationError, import_backup
+from backup.services.notifications.base import NotifyEvent
 from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 
 
@@ -299,3 +301,41 @@ class ApiImportBackupTest(TempBackupDirMixin, TestCase):
             data={"archive": make_upload(archive)},
         )
         self.assertEqual(resp.status_code, 413)
+
+
+class ImportNotificationIntegrationTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.config = NodeRedConfig.objects.create(
+            pk=1, name="Test", notify_enabled=True
+        )
+
+    @patch("backup.services.notification_service.notify")
+    def test_successful_import_triggers_notification(self, mock_notify):
+        archive = create_test_archive()
+        record, _ = import_backup(self.config, make_upload(archive))
+        self.assertEqual(record.status, "success")
+        mock_notify.assert_called_once()
+        _, payload = mock_notify.call_args[0]
+        self.assertEqual(payload.event, NotifyEvent.IMPORT_SUCCESS)
+        self.assertEqual(payload.filename, record.filename)
+
+    @patch("backup.services.notification_service.notify")
+    def test_notification_failure_does_not_break_import(self, mock_notify):
+        mock_notify.side_effect = Exception("Notification system down")
+        archive = create_test_archive()
+        record, _ = import_backup(self.config, make_upload(archive))
+        self.assertEqual(record.status, "success")
+
+    @patch("backup.services.retention_service.apply_retention")
+    def test_import_triggers_retention(self, mock_retention):
+        archive = create_test_archive()
+        import_backup(self.config, make_upload(archive))
+        mock_retention.assert_called_once_with(self.config)
+
+    @patch("backup.services.retention_service.apply_retention")
+    def test_retention_failure_does_not_break_import(self, mock_retention):
+        mock_retention.side_effect = Exception("Retention failed")
+        archive = create_test_archive()
+        record, _ = import_backup(self.config, make_upload(archive))
+        self.assertEqual(record.status, "success")
