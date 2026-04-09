@@ -68,7 +68,7 @@ def validate_import_archive(uploaded_file):
             if "flows.json" not in member_names:
                 raise ImportValidationError("Archive must contain flows.json")
 
-            # 5. No unexpected files
+            # 6. No unexpected files
             unexpected = member_names - _ALLOWED_MEMBERS
             if unexpected:
                 raise ImportValidationError(
@@ -76,14 +76,14 @@ def validate_import_archive(uploaded_file):
                     f"{', '.join(sorted(unexpected))}"
                 )
 
-            # 6. No symlinks or hardlinks
+            # 7. No symlinks or hardlinks
             for m in members:
                 if m.issym() or m.islnk():
                     raise ImportValidationError(
                         "Archive contains symbolic or hard links"
                     )
 
-            # 7. No path traversal
+            # 8. No path traversal
             for m in members:
                 if ".." in m.name or m.name.startswith("/"):
                     raise ImportValidationError("Archive contains path traversal")
@@ -105,10 +105,8 @@ def validate_import_archive(uploaded_file):
     except (tarfile.TarError, EOFError, OSError) as exc:
         raise ImportValidationError("File is not a valid tar.gz archive") from exc
 
-    # 8. flows.json must be valid JSON array
+    # 9. flows.json must be valid JSON array
     flows_bytes = contents["flows.json"]
-    if len(flows_bytes) > _MAX_FLOWS_SIZE:
-        raise ImportValidationError("flows.json exceeds 10 MB")
 
     try:
         flows_data = json.loads(flows_bytes)
@@ -185,7 +183,8 @@ def import_backup(config, uploaded_file, label="", notes=""):
         current_parsed = parse_flows(json.loads(flows_bytes))
     except Exception:
         logger.warning(
-            "Failed to parse imported flows for summaries; continuing with empty summaries",
+            "Failed to parse imported flows for summaries;"
+            " continuing with empty summaries",
             exc_info=True,
         )
         current_parsed = None
@@ -223,7 +222,7 @@ def import_backup(config, uploaded_file, label="", notes=""):
 
     logger.info("Backup imported: %s (%d bytes)", filename, archive_size)
 
-    _notify_import(config, record, success=True)
+    _notify_import(config, record)
 
     try:
         from backup.services.retention_service import apply_retention
@@ -255,25 +254,21 @@ def _compute_changes(last_backup, current_parsed):
     return diff_tab_summaries(prev_parsed, current_parsed)
 
 
-def _notify_import(config, record, success=True):
-    """Send notification for an import result."""
+def _notify_import(config, record):
+    """Send success notification for an import."""
     try:
         from backup.services.notification_service import notify
         from backup.services.notifications.base import NotificationPayload, NotifyEvent
 
         payload = NotificationPayload(
-            event=NotifyEvent.IMPORT_SUCCESS if success else NotifyEvent.IMPORT_FAILED,
+            event=NotifyEvent.IMPORT_SUCCESS,
             instance_name=config.name,
             instance_slug=config.slug,
             instance_color=config.color,
-            title=(
-                f"Backup import {'successful' if success else 'failed'}"
-                f" \u2014 {config.name}"
-            ),
-            message=record.filename if success else "Import attempt failed.",
-            error=record.error_message if not success else None,
+            title=f"Backup import successful \u2014 {config.name}",
+            message=record.filename,
             filename=record.filename,
-            file_size=record.file_size if success else None,
+            file_size=record.file_size,
             trigger="import",
         )
         notify(config, payload)

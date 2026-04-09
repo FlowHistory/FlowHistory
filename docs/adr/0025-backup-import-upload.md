@@ -285,15 +285,15 @@ Rejected. The import path has fundamentally different inputs (uploaded tar.gz) a
 
 ## Todos
 
-- [ ] Add `"import"` to `BackupRecord.TRIGGER_CHOICES` and create migration
-- [ ] Add `IMPORT_MAX_SIZE` to `config/settings.py`
-- [ ] Create `backup/services/import_service.py`
-- [ ] Add `api_import_backup` view to `backup/views/api.py`
-- [ ] Add re-export to `backup/views/__init__.py`
-- [ ] Add URL pattern to `backup/urls.py`
-- [ ] Add `IMPORT_SUCCESS` / `IMPORT_FAILED` events to notification base
-- [ ] Add "Import Backup" button to instance dashboard template
-- [ ] Add `importBackup()` modal function to `app.js`
-- [ ] Add `create_test_archive()` helper to `backup/tests/helpers.py`
-- [ ] Create `backup/tests/test_import.py`
-- [ ] Run full test suite
+- [x] Add `"import"` to `BackupRecord.TRIGGER_CHOICES` and create migration
+- [x] Add `IMPORT_MAX_SIZE` to `config/settings.py`
+- [x] Create `backup/services/import_service.py`
+- [x] Add `api_import_backup` view to `backup/views/api.py`
+- [x] Add re-export to `backup/views/__init__.py`
+- [x] Add URL pattern to `backup/urls.py`
+- [x] Add `IMPORT_SUCCESS` / `IMPORT_FAILED` events to notification base
+- [x] Add "Import Backup" button to instance dashboard template
+- [x] Add `importBackup()` modal function to `app.js`
+- [x] Add `create_test_archive()` helper to `backup/tests/test_import.py`
+- [x] Create `backup/tests/test_import.py`
+- [x] Run full test suite

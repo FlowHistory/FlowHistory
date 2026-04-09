@@ -4,15 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('backup', '0010_notify_fields'),
+        ("backup", "0010_notify_fields"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='backuprecord',
-            name='trigger',
-            field=models.CharField(choices=[('manual', 'Manual'), ('scheduled', 'Scheduled'), ('file_change', 'File Change'), ('pre_restore', 'Pre-Restore Safety'), ('import', 'Import')], default='manual', max_length=20),
+            model_name="backuprecord",
+            name="trigger",
+            field=models.CharField(
+                choices=[
+                    ("manual", "Manual"),
+                    ("scheduled", "Scheduled"),
+                    ("file_change", "File Change"),
+                    ("pre_restore", "Pre-Restore Safety"),
+                    ("import", "Import"),
+                ],
+                default="manual",
+                max_length=20,
+            ),
         ),
     ]

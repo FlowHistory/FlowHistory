@@ -145,6 +145,12 @@ class ImportServiceTest(TempBackupDirMixin, TestCase):
         self.assertIn("Checksum matches", dup_warning)
         self.assertNotEqual(record1.pk, record2.pk)
 
+    def test_reject_label_too_long(self):
+        archive = create_test_archive()
+        with self.assertRaises(ImportValidationError) as ctx:
+            import_backup(self.config, make_upload(archive), label="x" * 201)
+        self.assertIn("200 characters", str(ctx.exception))
+
     def test_reject_non_tar_gz(self):
         upload = SimpleUploadedFile(
             "backup.txt", b"not a tar", content_type="text/plain"
