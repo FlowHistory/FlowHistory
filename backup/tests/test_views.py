@@ -1,8 +1,9 @@
 import json
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from backup.models import NodeRedConfig
+from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
 from backup.services.backup_service import create_backup
 from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 
@@ -109,3 +110,157 @@ class InstanceDeleteTest(TempBackupDirMixin, TestCase):
         resp = self.client.post(f"/instance/{slug}/delete/", {"delete_files": "on"})
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(backup_dir.is_dir())
+
+
+@override_settings(REQUIRE_AUTH=False)
+class BackupDetailViewTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            name="Detail Test",
+            flows_path=str(self.flows_file),
+        )
+
+    def test_renders_backup_detail(self):
+        rec = create_backup(self.config, trigger="manual")
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/{rec.pk}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["backup"], rec)
+
+    def test_nonexistent_backup_redirects(self):
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/9999/")
+        self.assertEqual(resp.status_code, 302)
+
+    def test_shows_previous_backup(self):
+        rec1 = create_backup(self.config, trigger="manual")
+        # Modify flows so dedup doesn't skip
+        self.flows_file.write_text(
+            json.dumps([{"id": "tab1", "type": "tab", "label": "Changed"}])
+        )
+        rec2 = create_backup(self.config, trigger="manual")
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/{rec2.pk}/")
+        self.assertEqual(resp.context["prev_backup"], rec1)
+
+    def test_shows_restore_history(self):
+        rec = create_backup(self.config, trigger="manual")
+        RestoreRecord.objects.create(
+            config=self.config, backup=rec, status="success"
+        )
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/{rec.pk}/")
+        self.assertEqual(resp.context["restores"].count(), 1)
+
+
+@override_settings(REQUIRE_AUTH=False)
+class BackupDownloadViewTest(TempBackupDirMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            name="Download Test",
+            flows_path=str(self.flows_file),
+        )
+
+    def test_downloads_archive(self):
+        rec = create_backup(self.config, trigger="manual")
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/backup/{rec.pk}/download/"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/gzip")
+
+    def test_missing_archive_returns_404(self):
+        from pathlib import Path
+
+        rec = create_backup(self.config, trigger="manual")
+        Path(rec.file_path).unlink()
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/backup/{rec.pk}/download/"
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_nonexistent_record_redirects(self):
+        resp = self.client.get(
+            f"/instance/{self.config.slug}/backup/9999/download/"
+        )
+        self.assertEqual(resp.status_code, 302)
+
+
+@override_settings(REQUIRE_AUTH=False)
+class InstanceSettingsViewTest(TestCase):
+    def test_renders_settings_page(self):
+        config = NodeRedConfig.objects.create(name="Settings Test")
+        resp = self.client.get(f"/instance/{config.slug}/settings/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["config"], config)
+        self.assertIn("notification_backends", resp.context)
+        self.assertIn("notify_backend_status", resp.context)
+
+
+@override_settings(REQUIRE_AUTH=False)
+class ApiTestConnectionTest(TestCase):
+    def setUp(self):
+        self.local_config = NodeRedConfig.objects.create(
+            name="Local", source_type="local"
+        )
+        self.remote_config = NodeRedConfig.objects.create(
+            name="Remote",
+            source_type="remote",
+            nodered_url="http://fake:1880",
+        )
+
+    def test_local_instance_returns_400(self):
+        resp = self.client.post(
+            f"/api/instance/{self.local_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Not a remote instance", resp.json()["message"])
+
+    def test_no_url_returns_400(self):
+        self.remote_config.nodered_url = ""
+        self.remote_config.save()
+        resp = self.client.post(
+            f"/api/instance/{self.remote_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("No URL configured", resp.json()["message"])
+
+    @patch("backup.services.remote_service.fetch_remote_flows")
+    def test_successful_connection(self, mock_fetch):
+        flows = [{"id": "t1", "type": "tab"}, {"id": "n1", "type": "inject", "z": "t1"}]
+        mock_fetch.return_value = (json.dumps(flows), "token123")
+        resp = self.client.post(
+            f"/api/instance/{self.remote_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("2 flow objects", resp.json()["message"])
+
+    @patch("backup.services.remote_service.fetch_remote_flows")
+    def test_connection_error_returns_502(self, mock_fetch):
+        import requests as http_requests
+
+        mock_fetch.side_effect = http_requests.ConnectionError("refused")
+        resp = self.client.post(
+            f"/api/instance/{self.remote_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 502)
+
+    @patch("backup.services.remote_service.fetch_remote_flows")
+    def test_timeout_returns_504(self, mock_fetch):
+        import requests as http_requests
+
+        mock_fetch.side_effect = http_requests.Timeout("timed out")
+        resp = self.client.post(
+            f"/api/instance/{self.remote_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 504)
+
+    @patch("backup.services.remote_service.fetch_remote_flows")
+    def test_generic_error_returns_500(self, mock_fetch):
+        mock_fetch.side_effect = RuntimeError("unexpected")
+        resp = self.client.post(
+            f"/api/instance/{self.remote_config.slug}/test-connection/"
+        )
+        self.assertEqual(resp.status_code, 500)

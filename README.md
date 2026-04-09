@@ -1,25 +1,28 @@
 # FlowHistory
 
-A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker container that manages backups for one or more Node-RED instances — local (file-based) or remote (API-based). Automatically detects flow changes, creates compressed backups, and provides a web UI for managing backups, viewing diffs, and restoring.
+A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker container that manages backups for one or more Node-RED instances, local (file-based) or remote (API-based). Automatically detects flow changes, creates compressed backups, and provides a web UI for managing backups, viewing diffs, and restoring.
+
+![FlowHistory Dashboard](example.png)
 
 ## Features
 
-- **Multi-instance support** — manage backups for multiple Node-RED instances from a single deployment
-- **Local and remote instances** — watch local files via inotify or poll remote instances via the Node-RED Admin API
-- **Automatic backups on change** — file watching (local) or API polling (remote) with configurable intervals
-- **Scheduled backups** — hourly, daily, or weekly via APScheduler
-- **Manual backups** — one-click from the dashboard
-- **Visual diff viewer** — see which tabs, subflows, and nodes changed between any two backups, with field-level diffs
-- **One-click restore** — restores files (local) or deploys flows via API (remote), optionally restarts the container
-- **Pre-restore safety backup** — always created before overwriting current flows
-- **Checksum deduplication** — skips backup if flows haven't changed (SHA256)
-- **Retention policies** — by max count and max age, with protection for pinned and recent safety backups
-- **Credentials and settings backup** — optionally include flows_cred.json and settings.js (local only)
-- **Labels and notes** — annotate backups with descriptions
-- **Notifications** — alerts via Discord, Slack, Telegram, Pushbullet, or Home Assistant for backup failures, restores, and more
-- **Dark mode** — with system preference detection and manual toggle
-- **Optional password auth** — simple shared password via environment variable
-- **Health check endpoint** — for Docker healthcheck integration
+- **Multi-instance support** - manage backups for multiple Node-RED instances from a single deployment
+- **Local and remote instances** - watch local files via inotify or poll remote instances via the Node-RED Admin API
+- **Automatic backups on change** - file watching (local) or API polling (remote) with configurable intervals
+- **Scheduled backups** - hourly, daily, or weekly via APScheduler
+- **Manual backups** - one-click from the dashboard
+- **Visual diff viewer** - see which tabs, subflows, and nodes changed between any two backups, with field-level diffs
+- **One-click restore** - restores files (local) or deploys flows via API (remote), optionally restarts the container
+- **Pre-restore safety backup** - always created before overwriting current flows
+- **Checksum deduplication** - skips backup if flows haven't changed (SHA256)
+- **Retention policies** - by max count and max age, with protection for pinned and recent safety backups
+- **Backup import/export** - upload backup archives from other instances or download them for offline storage
+- **Credentials and settings backup** - optionally include flows_cred.json and settings.js (local only)
+- **Labels and notes** - annotate backups with descriptions
+- **Notifications** - alerts via Discord, Slack, Telegram, Pushbullet, or Home Assistant for backup failures, restores, and more
+- **Dark mode** - with system preference detection and manual toggle
+- **Optional password auth** - simple shared password via environment variable
+- **Health check endpoint** - for Docker healthcheck integration
 
 ## Setup
 
@@ -187,7 +190,7 @@ FlowHistory supports five notification backends: **Discord**, **Slack**, **Teleg
 
 **Per-instance** overrides use the standard `FLOWHISTORY_{PREFIX}_` pattern (e.g. `FLOWHISTORY_LOCAL_DISCORD_WEBHOOK_URL`). When set, the per-instance value takes priority over the global one for that instance.
 
-All credentials are read from the environment at runtime and never stored in the database. Multiple backends can be active simultaneously — a single event will notify all configured backends.
+All credentials are read from the environment at runtime and never stored in the database. Multiple backends can be active simultaneously - a single event will notify all configured backends.
 
 By default all events are enabled. Available events: `backup_success`, `backup_failed`, `restore_success`, `restore_failed`, `retention_cleanup`, `import_success`, `import_failed`. Set `_NOTIFY_EVENTS=none` to silence an instance, or provide a comma-separated list to choose specific events (e.g., `_NOTIFY_EVENTS=backup_failed,restore_failed`).
 
@@ -201,9 +204,9 @@ docker exec flowhistory python manage.py discover_instances --force
 
 Single container running three processes via entrypoint.sh:
 
-- **gunicorn** — serves the Django web application
-- **APScheduler** — runs per-instance scheduled backups and retention cleanup
-- **watcher** — file watchers for local instances (inotify + polling fallback) and remote API pollers
+- **gunicorn** - serves the Django web application
+- **APScheduler** - runs per-instance scheduled backups and retention cleanup
+- **watcher** - file watchers for local instances (inotify + polling fallback) and remote API pollers
 
 All business logic lives in `backup/services/`. Data is stored in SQLite (WAL mode). Backups are tar.gz archives stored in per-instance subdirectories under `backups/<slug>/`.
 
@@ -214,6 +217,7 @@ All backup/restore endpoints are scoped to an instance by slug.
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/instance/<slug>/backup/` | POST | Create a manual backup |
+| `/api/instance/<slug>/import/` | POST | Import a backup archive |
 | `/api/instance/<slug>/backup/<id>/label/` | POST | Set backup label |
 | `/api/instance/<slug>/backup/<id>/notes/` | POST | Set backup notes |
 | `/api/instance/<slug>/backup/<id>/pin/` | POST | Toggle backup pin |
