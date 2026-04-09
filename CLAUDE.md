@@ -10,33 +10,46 @@ All commands run inside the Docker container. Never use local `python`, `uv run`
 
 ### Build & Run
 
-Use `dca` (alias for `~/docker/bin/dcwrap`, use full path in Bash tool) to manage the production container. It's a docker compose wrapper that stitches split stack files from `~/docker/`. Never use the local `docker-compose.yml` directly.
+Use the repo's `docker-compose.yml` for development. It runs on port **9473** with no volumes (ephemeral data/backups) so it doesn't conflict with the production instance (port 9472 via `dca`).
 
 ```bash
-dca up -d --build flowhistory   # Rebuild and restart
-dca logs flowhistory --tail=50   # View logs
-dca down flowhistory             # Stop
+docker compose up -d --build            # Rebuild and restart dev container
+docker compose logs flowhistory --tail=50  # View logs
+docker compose down                      # Stop
 ```
+
+The dev container name is auto-generated (e.g. `nodered-backup-flowhistory-1`). Use `docker compose exec` instead of `docker exec` to target it without knowing the name.
 
 ### Tests
 ```bash
-docker exec flowhistory python manage.py test backup -v2
+docker compose exec flowhistory python manage.py test backup -v2
 ```
 
 ### Migrations
 ```bash
-docker exec flowhistory python manage.py makemigrations backup
-docker exec flowhistory python manage.py migrate
+docker compose exec flowhistory python manage.py makemigrations backup
+docker compose exec flowhistory python manage.py migrate
 ```
 
 ### Django Management Commands
 ```bash
-docker exec flowhistory python manage.py <command>
+docker compose exec flowhistory python manage.py <command>
 ```
 
-### Manual Backup (via API)
+### Manual Testing (via browser)
 ```bash
-# Auth is enabled; use the web UI at http://192.168.1.76:9472/ or curl with session cookie
+# Dev UI: http://localhost:9473/ (no auth, debug mode, no Node-RED volumes)
+# Production UI: http://192.168.1.76:9472/ (auth enabled, real data)
+```
+
+### Production Container
+
+Use `dca` (alias for `~/docker/bin/dcwrap`, use full path in Bash tool) to manage the production container. It uses split stack files from `~/docker/`, not the repo's docker-compose.yml.
+
+```bash
+dca up -d --build flowhistory   # Rebuild and restart production
+dca logs flowhistory --tail=50
+dca down flowhistory
 ```
 
 ## Architecture

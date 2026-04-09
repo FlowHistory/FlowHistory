@@ -1,14 +1,11 @@
 services:
   flowhistory:
     build: .
-    container_name: flowhistory
     ports:
-      - "9472:8000"
-    volumes:
-      - ./data:/app/data
-      - ./backups:/app/backups
-      # - /path/to/nodered/data:/nodered-data
-      # - /var/run/docker.sock:/var/run/docker.sock  # Required for container restart on restore
-    env_file:
-      - .env
+      - "9473:8000"
+    environment:
+      - DEBUG=true
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - TIME_ZONE=${TIME_ZONE:-UTC}
+      - REQUIRE_AUTH=false
     restart: unless-stopped

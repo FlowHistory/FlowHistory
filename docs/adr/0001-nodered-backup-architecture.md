@@ -3,7 +3,7 @@
 > **Note:** This project was renamed from "Node-RED Backup" to "FlowHistory" in April 2026.
 
 ## Status
-Partially Implemented
+Implemented
 
 ## Context
 
@@ -257,14 +257,14 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 
 ## Future Feature Ideas
 
-- **Notifications**: Discord, Slack, Telegram, Pushbullet, Home Assistant webhooks on backup success/failure/restore events
-- **Backup Import/Upload**: Upload a `.tar.gz` archive from another instance or local machine and register it as a backup record
+- ~~**Notifications**~~: *(Done — ADR 0022)* Discord, Slack, Telegram, Pushbullet, Home Assistant webhooks on backup success/failure/restore events
+- **Backup Import/Upload**: Upload a `.tar.gz` archive from another instance or local machine and register it as a backup record *(ADR 0025)*
 - **Export/Download All**: Download all (or N most recent) backups as a single zip for offsite archival or migration
 - **Backup Search & Filter**: Filter history table by trigger type, date range, status, or label
-- **Snapshot Pinning**: Mark backups as "pinned" so retention never deletes them (e.g., known-good configs, pre-major-change snapshots)
-- **Bulk Actions**: Select multiple backups and delete/download/label them at once
-- **Backup Notes/Annotations**: Expand the label field into a richer notes/description area for recording why a flow state matters
-- **Multi-Instance Support**: Monitor and back up multiple Node-RED instances from a single dashboard (separate flows paths, containers, unified view)
+- ~~**Snapshot Pinning**~~: *(Done — ADR 0016)* Mark backups as "pinned" so retention never deletes them (e.g., known-good configs, pre-major-change snapshots)
+- ~~**Bulk Actions**~~: *(Done — ADR 0017)* Select multiple backups and delete/download/label them at once
+- ~~**Backup Notes/Annotations**~~: *(Done — ADR 0015)* Expand the label field into a richer notes/description area for recording why a flow state matters
+- ~~**Multi-Instance Support**~~: *(Done — ADR 0013)* Monitor and back up multiple Node-RED instances from a single dashboard (separate flows paths, containers, unified view)
 - **REST API Expansion**: Read-only API (`GET /api/backups/`, `GET /api/backups/<id>/`, `GET /api/status/`) for Home Assistant sensors, Grafana, or custom monitoring
 - **Scheduled Restore Testing**: Periodically verify the latest backup can be extracted, parsed, and checksum-validated without performing a real restore
 - **System Theme Auto-Follow**: A "system" theme option that tracks OS dark/light preference changes in real-time
@@ -285,11 +285,11 @@ Single container running gunicorn + scheduler + file watcher via entrypoint.sh (
 - [x] Implement docker_service.py for container restart
 - [x] Implement retention_service.py
 - [x] Create management commands (runapscheduler, runwatcher)
-- [ ] Build settings template (`/settings/` form for NodeRedConfig)
+- [x] Build settings template (`/settings/` form for NodeRedConfig) *(ADR 0007)*
 - [x] Build diff viewer template (`/diff/<id>/`)
-- [ ] Dashboard improvements (download, delete, labels, status cards)
+- [x] Dashboard improvements (download, delete, labels, status cards) *(ADR 0009, 0012)*
 - [x] Create Dockerfile, docker-compose.yml, entrypoint.sh
-- [ ] Add notification service (Discord, Slack, Telegram, Pushbullet, HA)
+- [x] Add notification service (Discord, Slack, Telegram, Pushbullet, HA) *(ADR 0022)*
 - [x] Add optional auth middleware
 - [x] Write tests (79 tests across all services, running in Docker)
 - [x] Create README.md and .env.example

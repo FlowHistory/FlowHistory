@@ -2,11 +2,14 @@ import json
 import logging
 from pathlib import Path
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from ..models import BackupRecord
 from ..services.backup_service import create_backup
+from ..services.import_service import ImportValidationError, import_backup
+from ..services.notifications.base import NotificationPayload, NotifyEvent
 from ..services.restore_service import restore_backup
 from .pages import _get_config
 
@@ -77,6 +80,75 @@ def api_create_backup(request, slug):
             },
         }
     )
+
+
+@require_POST
+def api_import_backup(request, slug):
+    config = _get_config(slug)
+    uploaded = request.FILES.get("archive")
+    if not uploaded:
+        return JsonResponse(
+            {"status": "error", "message": "No archive file provided"}, status=400
+        )
+    if uploaded.size > settings.IMPORT_MAX_SIZE:
+        max_mb = settings.IMPORT_MAX_SIZE // (1024 * 1024)
+        msg = f"Archive exceeds maximum size of {max_mb} MB"
+        _notify_import_failed(config, uploaded.name, msg)
+        return JsonResponse({"status": "error", "message": msg}, status=413)
+    label = request.POST.get("label", "")
+    notes = request.POST.get("notes", "")
+    try:
+        record, duplicate_warning = import_backup(
+            config, uploaded, label=label, notes=notes
+        )
+    except ImportValidationError as e:
+        _notify_import_failed(config, uploaded.name, str(e))
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+    except Exception:
+        logger.exception("Unexpected error importing backup")
+        _notify_import_failed(config, uploaded.name, "Internal error during import")
+        return JsonResponse(
+            {"status": "error", "message": "Internal error during import"}, status=500
+        )
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Backup imported successfully",
+            "backup": {
+                "id": record.pk,
+                "filename": record.filename,
+                "file_size": record.file_size,
+                "checksum": record.checksum,
+                "trigger": record.trigger,
+                "created_at": record.created_at.isoformat(),
+                "tab_summary": record.tab_summary,
+                "includes_credentials": record.includes_credentials,
+                "includes_settings": record.includes_settings,
+                "duplicate_warning": duplicate_warning,
+            },
+        }
+    )
+
+
+def _notify_import_failed(config, archive_name, error_message):
+    """Best-effort notification for a failed import attempt."""
+    try:
+        from ..services.notification_service import notify
+
+        payload = NotificationPayload(
+            event=NotifyEvent.IMPORT_FAILED,
+            instance_name=config.name,
+            instance_slug=config.slug,
+            instance_color=config.color,
+            title=f"Backup import failed \u2014 {config.name}",
+            message=archive_name or "unknown file",
+            filename=archive_name,
+            error=error_message,
+            trigger="import",
+        )
+        notify(config, payload)
+    except Exception:
+        logger.warning("Notification failed for import error", exc_info=True)
 
 
 @require_POST

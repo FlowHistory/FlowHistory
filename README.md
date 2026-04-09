@@ -132,6 +132,7 @@ The UI is available at `http://<host>:9472/`. With a single instance, the dashbo
 | `TIME_ZONE` | `America/New_York` | Timezone for schedules and timestamps |
 | `REQUIRE_AUTH` | `false` | Enable password authentication |
 | `APP_PASSWORD` | | Password for web UI access |
+| `IMPORT_MAX_SIZE` | `52428800` | Maximum upload size for backup import in bytes (default 50 MB) |
 
 ### Instance configuration
 
@@ -188,7 +189,7 @@ FlowHistory supports five notification backends: **Discord**, **Slack**, **Teleg
 
 All credentials are read from the environment at runtime and never stored in the database. Multiple backends can be active simultaneously — a single event will notify all configured backends.
 
-By default all events are enabled. Available events: `backup_success`, `backup_failed`, `restore_success`, `restore_failed`, `retention_cleanup`. Set `_NOTIFY_EVENTS=none` to silence an instance, or provide a comma-separated list to choose specific events (e.g., `_NOTIFY_EVENTS=backup_failed,restore_failed`).
+By default all events are enabled. Available events: `backup_success`, `backup_failed`, `restore_success`, `restore_failed`, `retention_cleanup`, `import_success`, `import_failed`. Set `_NOTIFY_EVENTS=none` to silence an instance, or provide a comma-separated list to choose specific events (e.g., `_NOTIFY_EVENTS=backup_failed,restore_failed`).
 
 Env vars seed the database on first creation only. To re-apply env var values to existing instances, run:
 

@@ -389,6 +389,130 @@ function testNotification() {
   });
 }
 
+// Import backup (upload archive)
+function importBackup() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50';
+  overlay.onclick = function (e) { if (e.target === overlay) close(); };
+
+  var card = document.createElement('div');
+  card.className = 'mx-4 w-full max-w-lg rounded-lg border border-gray-200 bg-white p-5 shadow-lg dark:border-gray-700 dark:bg-gray-800';
+
+  var title = document.createElement('h3');
+  title.className = 'mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100';
+  title.textContent = 'Import Backup';
+
+  // File input
+  var fileLabel = document.createElement('label');
+  fileLabel.className = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300';
+  fileLabel.textContent = 'Archive file (.tar.gz)';
+
+  var fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.tar.gz,.tgz';
+  fileInput.className = 'mb-3 block w-full text-sm text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-400 dark:file:bg-blue-900/30 dark:file:text-blue-300';
+
+  // Label input
+  var labelLabel = document.createElement('label');
+  labelLabel.className = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300';
+  labelLabel.textContent = 'Label (optional)';
+
+  var labelInput = document.createElement('input');
+  labelInput.type = 'text';
+  labelInput.maxLength = 200;
+  labelInput.placeholder = 'e.g. Migrated from server-2';
+  labelInput.className = 'mb-3 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200';
+
+  // Notes textarea
+  var notesLabel = document.createElement('label');
+  notesLabel.className = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300';
+  notesLabel.textContent = 'Notes (optional)';
+
+  var notesInput = document.createElement('textarea');
+  notesInput.rows = 3;
+  notesInput.placeholder = 'Add notes about this import...';
+  notesInput.className = 'mb-3 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200';
+
+  // Buttons
+  var btnRow = document.createElement('div');
+  btnRow.className = 'mt-1 flex justify-end gap-2';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-secondary';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = close;
+
+  var importBtn = document.createElement('button');
+  importBtn.className = 'btn-primary';
+  importBtn.textContent = 'Import';
+  importBtn.onclick = function () {
+    if (!fileInput.files || !fileInput.files[0]) {
+      showBanner('Please select a file to import');
+      return;
+    }
+    importBtn.disabled = true;
+    importBtn.textContent = 'Importing...';
+
+    var formData = new FormData();
+    formData.append('archive', fileInput.files[0]);
+    formData.append('label', labelInput.value);
+    formData.append('notes', notesInput.value);
+
+    fetch(getApiBase() + 'import/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: formData,
+    })
+    .then(function (r) {
+      if (!r.ok && !(r.headers.get('content-type') || '').includes('application/json')) {
+        return r.text().then(function (text) {
+          return { status: 'error', message: text || 'Upload failed (HTTP ' + r.status + ')' };
+        });
+      }
+      return r.json();
+    })
+    .then(function (data) {
+      if (data.status === 'success') {
+        close();
+        if (data.backup && data.backup.duplicate_warning) {
+          showBanner(data.backup.duplicate_warning, 'warning');
+        }
+        showBanner('Backup imported: ' + data.backup.filename, 'success');
+        setTimeout(function () { location.reload(); }, 1500);
+      } else {
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import';
+        close();
+        showBanner(data.message || 'Import failed');
+      }
+    })
+    .catch(function () {
+      importBtn.disabled = false;
+      importBtn.textContent = 'Import';
+      close();
+      showBanner('Request failed');
+    });
+  };
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(importBtn);
+
+  card.appendChild(title);
+  card.appendChild(fileLabel);
+  card.appendChild(fileInput);
+  card.appendChild(labelLabel);
+  card.appendChild(labelInput);
+  card.appendChild(notesLabel);
+  card.appendChild(notesInput);
+  card.appendChild(btnRow);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  function close() {
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  }
+}
+
 // Restore backup
 function restoreBackup(id, filename) {
   if (!confirm('Restore from ' + filename + '?\n\nThis will overwrite current Node-RED files. A safety backup will be created first.')) {

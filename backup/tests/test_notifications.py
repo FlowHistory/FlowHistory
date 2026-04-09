@@ -27,6 +27,8 @@ class NotifyEventTest(TestCase):
             "restore_success",
             "restore_failed",
             "retention_cleanup",
+            "import_success",
+            "import_failed",
         }
         self.assertEqual(NotifyEvent.ALL, expected)
 
