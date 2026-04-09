@@ -1,9 +1,9 @@
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
+from backup.models import NodeRedConfig, RestoreRecord
 from backup.services.backup_service import create_backup
 from backup.tests.helpers import SAMPLE_FLOWS, TempBackupDirMixin
 

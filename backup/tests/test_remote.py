@@ -3,7 +3,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import requests as http_requests
-
 from django.test import TestCase, override_settings
 
 from backup.models import NodeRedConfig
@@ -213,7 +212,10 @@ class FetchRemoteFlowsTest(TestCase):
     @patch("backup.services.remote_service.requests")
     @patch("backup.services.remote_service.authenticate_nodered")
     def test_enforces_size_limit(self, mock_auth, mock_requests):
-        from backup.services.remote_service import MAX_RESPONSE_BYTES, fetch_remote_flows
+        from backup.services.remote_service import (
+            MAX_RESPONSE_BYTES,
+            fetch_remote_flows,
+        )
 
         mock_auth.return_value = None
         mock_resp = MagicMock()

@@ -1,7 +1,9 @@
 import json
+from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from django.core.management import call_command
 from django.test import TestCase
 
 from backup.models import BackupRecord, NodeRedConfig
@@ -21,9 +23,6 @@ class CheckIntegrityTest(TempBackupDirMixin, TestCase):
 
     def test_no_orphans(self):
         create_backup(self.config, trigger="manual")
-        from django.core.management import call_command
-        from io import StringIO
-
         out = StringIO()
         call_command("checkintegrity", stdout=out)
         self.assertIn("all backup files present", out.getvalue())
@@ -32,9 +31,6 @@ class CheckIntegrityTest(TempBackupDirMixin, TestCase):
         rec = create_backup(self.config, trigger="manual")
         # Delete the file but keep the DB record
         Path(rec.file_path).unlink()
-
-        from django.core.management import call_command
-        from io import StringIO
 
         out, err = StringIO(), StringIO()
         call_command("checkintegrity", stdout=out, stderr=err)
@@ -47,9 +43,6 @@ class CheckIntegrityTest(TempBackupDirMixin, TestCase):
         rec = create_backup(self.config, trigger="manual")
         Path(rec.file_path).unlink()
 
-        from django.core.management import call_command
-        from io import StringIO
-
         err = StringIO()
         call_command("checkintegrity", "--delete", stdout=StringIO(), stderr=err)
         self.assertIn("Deleted", err.getvalue())
@@ -58,9 +51,6 @@ class CheckIntegrityTest(TempBackupDirMixin, TestCase):
     def test_existing_files_not_flagged(self):
         rec = create_backup(self.config, trigger="manual")
         self.assertTrue(Path(rec.file_path).is_file())
-
-        from django.core.management import call_command
-        from io import StringIO
 
         out = StringIO()
         call_command("checkintegrity", stdout=out)
