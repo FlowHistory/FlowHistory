@@ -77,7 +77,7 @@ Validation is performed in a dedicated `validate_import_archive(uploaded_file)` 
 | Step | Check | Error |
 |------|-------|-------|
 | 1 | File size <= `IMPORT_MAX_SIZE` (default 50 MB) | "Archive exceeds maximum size of 50 MB" |
-| 2 | Filename ends with `.tar.gz` or `.tgz` | "File must be a .tar.gz archive" |
+| 2 | Filename ends with `.tar.gz` or `.tgz` (case-insensitive) | "File must be a .tar.gz or .tgz archive" |
 | 3 | File is a valid gzip-compressed tar archive | "File is not a valid tar.gz archive" |
 | 4 | Archive contains `flows.json` | "Archive must contain flows.json" |
 | 5 | No members outside the whitelist `{"flows.json", "flows_cred.json", "settings.js"}` | "Archive contains unexpected files: {names}" |

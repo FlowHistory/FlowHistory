@@ -43,9 +43,9 @@ def validate_import_archive(uploaded_file):
         raise ImportValidationError(f"Archive exceeds maximum size of {max_mb} MB")
 
     # 2. Filename extension
-    name = uploaded_file.name or ""
-    if not (name.endswith(".tar.gz") or name.endswith(".tgz")):
-        raise ImportValidationError("File must be a .tar.gz archive")
+    name_lower = (uploaded_file.name or "").lower()
+    if not (name_lower.endswith(".tar.gz") or name_lower.endswith(".tgz")):
+        raise ImportValidationError("File must be a .tar.gz or .tgz archive")
 
     # 3. Read into memory and open as tar.gz
     raw = uploaded_file.read()
