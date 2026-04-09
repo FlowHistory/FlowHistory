@@ -160,6 +160,7 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 # Maximum upload size for backup import (bytes) — default 50 MB
 IMPORT_MAX_SIZE = int(os.environ.get("IMPORT_MAX_SIZE", 50 * 1024 * 1024))
-# Django global upload limit — add overhead for multipart boundaries so a file
-# exactly at IMPORT_MAX_SIZE is still accepted by Django before reaching the view.
-DATA_UPLOAD_MAX_MEMORY_SIZE = IMPORT_MAX_SIZE + 64 * 1024
+# Django's request parsing limit must be comfortably above IMPORT_MAX_SIZE so
+# oversized imports reach the view, which returns the expected JSON 413 response
+# and triggers the normal import-failure notification path.
+DATA_UPLOAD_MAX_MEMORY_SIZE = IMPORT_MAX_SIZE + 10 * 1024 * 1024

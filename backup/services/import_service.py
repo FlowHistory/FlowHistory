@@ -245,7 +245,7 @@ def _compute_changes(last_backup, current_parsed):
 
     try:
         prev_parsed = parse_flows_from_archive(last_archive)
-    except (tarfile.TarError, OSError, KeyError):
+    except (tarfile.TarError, OSError, KeyError, json.JSONDecodeError, TypeError):
         return {}
 
     if prev_parsed is None:
