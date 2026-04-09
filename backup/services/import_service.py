@@ -52,9 +52,19 @@ def validate_import_archive(uploaded_file):
     try:
         with tarfile.open(fileobj=BytesIO(raw), mode="r:gz") as tar:
             members = tar.getmembers()
-            member_names = {m.name for m in members}
+            # 4. Reject archives with too many or duplicate members
+            if len(members) > len(_ALLOWED_MEMBERS):
+                raise ImportValidationError("Archive contains too many files")
 
-            # 4. Must contain flows.json
+            member_names = set()
+            for m in members:
+                if m.name in member_names:
+                    raise ImportValidationError(
+                        f"Archive contains duplicate file: {m.name}"
+                    )
+                member_names.add(m.name)
+
+            # 5. Must contain flows.json
             if "flows.json" not in member_names:
                 raise ImportValidationError("Archive must contain flows.json")
 
@@ -78,9 +88,14 @@ def validate_import_archive(uploaded_file):
                 if ".." in m.name or m.name.startswith("/"):
                     raise ImportValidationError("Archive contains path traversal")
 
-            # Extract all members into a dict
+            # Extract all members into a dict (check size before reading)
             contents = {}
             for m in members:
+                if m.size > _MAX_FLOWS_SIZE:
+                    raise ImportValidationError(
+                        f"{m.name} exceeds maximum uncompressed size of "
+                        f"{_MAX_FLOWS_SIZE // (1024 * 1024)} MB"
+                    )
                 f = tar.extractfile(m)
                 if f is None:
                     raise ImportValidationError(f"Cannot read {m.name} from archive")
@@ -121,6 +136,9 @@ def import_backup(config, uploaded_file, label="", notes=""):
     Raises:
         ImportValidationError on validation failure.
     """
+    if label and len(label) > 200:
+        raise ImportValidationError("Label must be 200 characters or fewer")
+
     contents = validate_import_archive(uploaded_file)
 
     flows_bytes = contents["flows.json"]
@@ -146,9 +164,7 @@ def import_backup(config, uploaded_file, label="", notes=""):
     filename = f"flowhistory_{timestamp}_{short_id}.tar.gz"
 
     backup_dir = config.backup_dir
-    if not str(backup_dir.resolve()).startswith(
-        str(Path(settings.BACKUP_DIR).resolve())
-    ):
+    if not backup_dir.resolve().is_relative_to(Path(settings.BACKUP_DIR).resolve()):
         raise ImportValidationError("Backup directory outside allowed path")
 
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -167,7 +183,11 @@ def import_backup(config, uploaded_file, label="", notes=""):
     # Parse flows for tab_summary and changes_summary
     try:
         current_parsed = parse_flows(json.loads(flows_bytes))
-    except (json.JSONDecodeError, TypeError):
+    except Exception:
+        logger.warning(
+            "Failed to parse imported flows for summaries; continuing with empty summaries",
+            exc_info=True,
+        )
         current_parsed = None
 
     tab_summary = [t["label"] for t in current_parsed["tabs"]] if current_parsed else []
@@ -189,7 +209,7 @@ def import_backup(config, uploaded_file, label="", notes=""):
         checksum=checksum,
         status="success",
         trigger="import",
-        label=label[:200] if label else "",
+        label=label or "",
         notes=notes or "",
         tab_summary=tab_summary,
         changes_summary=changes_summary,

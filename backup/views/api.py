@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 from ..models import BackupRecord
 from ..services.backup_service import create_backup
 from ..services.import_service import ImportValidationError, import_backup
+from ..services.notifications.base import NotificationPayload, NotifyEvent
 from ..services.restore_service import restore_backup
 from .pages import _get_config
 
@@ -100,9 +101,11 @@ def api_import_backup(request, slug):
             config, uploaded, label=label, notes=notes
         )
     except ImportValidationError as e:
+        _notify_import_failed(config, uploaded.name, str(e))
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
     except Exception:
         logger.exception("Unexpected error importing backup")
+        _notify_import_failed(config, uploaded.name, "Internal error during import")
         return JsonResponse(
             {"status": "error", "message": "Internal error during import"}, status=500
         )
@@ -124,6 +127,26 @@ def api_import_backup(request, slug):
             },
         }
     )
+
+
+def _notify_import_failed(config, archive_name, error_message):
+    """Best-effort notification for a failed import attempt."""
+    try:
+        from ..services.notification_service import notify
+
+        payload = NotificationPayload(
+            event=NotifyEvent.IMPORT_FAILED,
+            instance_name=config.name,
+            instance_slug=config.slug,
+            instance_color=config.color,
+            title=f"Backup import failed \u2014 {config.name}",
+            message=archive_name or "unknown file",
+            error=error_message,
+            trigger="import",
+        )
+        notify(config, payload)
+    except Exception:
+        logger.warning("Notification failed for import error", exc_info=True)
 
 
 @require_POST

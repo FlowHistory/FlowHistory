@@ -1,7 +1,7 @@
 # ADR 0025: Backup Import/Upload
 
 ## Status
-Proposed
+Implemented
 
 ## Context
 
