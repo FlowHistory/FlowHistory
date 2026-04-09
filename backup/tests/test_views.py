@@ -145,9 +145,7 @@ class BackupDetailViewTest(TempBackupDirMixin, TestCase):
 
     def test_shows_restore_history(self):
         rec = create_backup(self.config, trigger="manual")
-        RestoreRecord.objects.create(
-            config=self.config, backup=rec, status="success"
-        )
+        RestoreRecord.objects.create(config=self.config, backup=rec, status="success")
         resp = self.client.get(f"/instance/{self.config.slug}/backup/{rec.pk}/")
         self.assertEqual(resp.context["restores"].count(), 1)
 
@@ -182,9 +180,7 @@ class BackupDownloadViewTest(TempBackupDirMixin, TestCase):
         self.assertEqual(resp.status_code, 404)
 
     def test_nonexistent_record_redirects(self):
-        resp = self.client.get(
-            f"/instance/{self.config.slug}/backup/9999/download/"
-        )
+        resp = self.client.get(f"/instance/{self.config.slug}/backup/9999/download/")
         self.assertEqual(resp.status_code, 302)
 
 

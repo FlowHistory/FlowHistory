@@ -247,7 +247,7 @@ class DeployRemoteFlowsTest(TestCase):
         mock_resp.raise_for_status = MagicMock()
         mock_requests.post.return_value = mock_resp
 
-        deploy_remote_flows(self.config, '[]')
+        deploy_remote_flows(self.config, "[]")
         mock_requests.post.assert_called_once()
         call_kwargs = mock_requests.post.call_args
         self.assertEqual(call_kwargs.kwargs["data"], "[]")
@@ -265,7 +265,7 @@ class DeployRemoteFlowsTest(TestCase):
         mock_resp_ok.raise_for_status = MagicMock()
         mock_requests.post.side_effect = [mock_resp_401, mock_resp_ok]
 
-        deploy_remote_flows(self.config, '[]')
+        deploy_remote_flows(self.config, "[]")
         self.assertEqual(mock_requests.post.call_count, 2)
 
     @patch("backup.services.remote_service.requests")
@@ -279,6 +279,6 @@ class DeployRemoteFlowsTest(TestCase):
         mock_resp.raise_for_status = MagicMock()
         mock_requests.post.return_value = mock_resp
 
-        deploy_remote_flows(self.config, b'[]')
+        deploy_remote_flows(self.config, b"[]")
         call_kwargs = mock_requests.post.call_args
         self.assertEqual(call_kwargs.kwargs["data"], "[]")
