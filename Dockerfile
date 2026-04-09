@@ -37,6 +37,13 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 RUN python manage.py collectstatic --noinput
 
+ARG GIT_COMMIT_SHORT=dev
+ARG BUILD_DATE=""
+ARG BUILD_REPO=""
+ENV GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV BUILD_REPO=${BUILD_REPO}
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
