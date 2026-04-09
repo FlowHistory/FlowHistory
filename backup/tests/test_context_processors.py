@@ -19,16 +19,15 @@ class FooterBuildMetadataTest(TestCase):
             "BUILD_DATE": "2026-04-09T12:00:00Z",
             "BUILD_REPO": "FlowHistory/FlowHistory",
         }
+        import importlib
+
+        from backup import context_processors
+
         with patch.dict("os.environ", env):
-            import importlib
-
-            from backup import context_processors
-
             importlib.reload(context_processors)
-            try:
-                resp = self.client.get("/instance/test/")
-                self.assertContains(resp, "abc1234")
-                self.assertContains(resp, "2026-04-09T12:00:00Z")
-                self.assertContains(resp, "FlowHistory/FlowHistory")
-            finally:
-                importlib.reload(context_processors)
+            resp = self.client.get("/instance/test/")
+            self.assertContains(resp, "abc1234")
+            self.assertContains(resp, "2026-04-09T12:00:00Z")
+            self.assertContains(resp, "FlowHistory/FlowHistory")
+
+        importlib.reload(context_processors)
