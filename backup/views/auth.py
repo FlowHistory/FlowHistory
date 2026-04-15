@@ -1,3 +1,5 @@
+import hmac
+
 from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
@@ -16,10 +18,18 @@ def health_check(request):
 
 def login_view(request):
     if request.method == "POST":
+        from backup.middleware.simple_auth import (
+            _get_client_ip,
+            clear_failed_attempts,
+            record_failed_attempt,
+        )
+
         password = request.POST.get("password", "")
-        if password == settings.APP_PASSWORD:
+        if hmac.compare_digest(password, settings.APP_PASSWORD):
             request.session["authenticated"] = True
+            clear_failed_attempts(_get_client_ip(request))
             return redirect("dashboard")
+        record_failed_attempt(_get_client_ip(request))
         return render(request, "backup/login.html", {"error": "Invalid password"})
     return render(request, "backup/login.html")
 
