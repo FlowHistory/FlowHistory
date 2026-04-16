@@ -1,3 +1,7 @@
+from unittest.mock import patch
+
+from django.apps import apps
+from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
 
 
@@ -67,3 +71,90 @@ class SimpleAuthMiddlewareTest(TestCase):
     def test_unauthenticated_api_redirects_to_login(self):
         resp = self.client.get("/instance/test/settings/")
         self.assertRedirects(resp, "/login/", fetch_redirect_response=False)
+
+
+@override_settings(REQUIRE_AUTH=True, APP_PASSWORD="secret123")
+class RateLimitTest(TestCase):
+    def setUp(self):
+        from backup.middleware.simple_auth import _failed_attempts, _lockout_until
+
+        _failed_attempts.clear()
+        _lockout_until.clear()
+
+    def tearDown(self):
+        from backup.middleware.simple_auth import _failed_attempts, _lockout_until
+
+        _failed_attempts.clear()
+        _lockout_until.clear()
+
+    def test_blocks_after_max_attempts(self):
+        for _ in range(5):
+            resp = self.client.post("/login/", {"password": "wrong"})
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, "Invalid password")
+
+        # 6th attempt should be blocked by middleware
+        resp = self.client.post("/login/", {"password": "wrong"})
+        self.assertContains(resp, "Too many failed attempts")
+
+    def test_correct_password_still_rejected_when_locked_out(self):
+        for _ in range(5):
+            self.client.post("/login/", {"password": "wrong"})
+
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertContains(resp, "Too many failed attempts")
+        self.assertFalse(self.client.session.get("authenticated", False))
+
+    def test_successful_login_clears_attempts(self):
+        for _ in range(3):
+            self.client.post("/login/", {"password": "wrong"})
+
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertRedirects(resp, "/", fetch_redirect_response=False)
+
+        # After successful login + logout, failed counter should be cleared
+        self.client.post("/logout/")
+        # Should be able to fail again without immediate lockout
+        for _ in range(4):
+            self.client.post("/login/", {"password": "wrong"})
+        resp = self.client.post("/login/", {"password": "wrong"})
+        self.assertContains(resp, "Invalid password")
+
+    @patch("backup.middleware.simple_auth.time")
+    def test_lockout_expires(self, mock_time):
+        mock_time.monotonic.return_value = 1000.0
+        for _ in range(5):
+            self.client.post("/login/", {"password": "wrong"})
+
+        # Still locked out shortly after
+        mock_time.monotonic.return_value = 1100.0
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertContains(resp, "Too many failed attempts")
+
+        # Still locked out after attempt window (300s) but before lockout (900s)
+        mock_time.monotonic.return_value = 1000.0 + 301.0
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertContains(resp, "Too many failed attempts")
+
+        # After lockout duration (900s), should be allowed again
+        mock_time.monotonic.return_value = 1000.0 + 901.0
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertRedirects(resp, "/", fetch_redirect_response=False)
+
+
+class StartupValidationTest(TestCase):
+    def _get_app(self):
+        return apps.get_app_config("backup")
+
+    @override_settings(REQUIRE_AUTH=True, APP_PASSWORD="")
+    def test_raises_on_empty_password(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self._get_app().ready()
+
+    @override_settings(REQUIRE_AUTH=True, APP_PASSWORD="secret123")
+    def test_passes_with_password_set(self):
+        self._get_app().ready()  # Should not raise
+
+    @override_settings(REQUIRE_AUTH=False, APP_PASSWORD="")
+    def test_passes_when_auth_disabled(self):
+        self._get_app().ready()  # Should not raise

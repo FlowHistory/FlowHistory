@@ -42,3 +42,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0023](0023-ci-cd-pipeline.md) | CI/CD Pipeline with GitHub Actions | **Implemented** |
 | [0024](0024-views-and-tests-refactor.md) | Split views.py and tests.py into Packages | **Implemented** |
 | [0025](0025-backup-import-upload.md) | Backup Import/Upload | **Implemented** |
+| [0026](0026-auth-security-hardening.md) | Auth Security Hardening | **Proposed** |
