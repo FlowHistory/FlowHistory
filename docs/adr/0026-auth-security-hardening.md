@@ -32,7 +32,7 @@ FlowHistory uses a custom session-based auth system implemented in ADR 0003. It'
 
 ### 1. Timing-Safe Comparison
 
-Only one viable approach: replace `==` with `hmac.compare_digest()` from Python's stdlib. This function uses a constant-time algorithm that doesn't short-circuit, preventing timing attacks. No alternatives were considered because this is the standard, zero-cost fix.
+Only one viable approach: replace `==` with `hmac.compare_digest()` from Python's stdlib. This function is designed to be more resistant to timing analysis than `==` and avoids the obvious early-exit behavior of normal string equality. No alternatives were considered because this is the standard, zero-cost fix.
 
 ### 2. Brute-Force Protection
 

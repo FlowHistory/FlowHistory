@@ -9,32 +9,42 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_ATTEMPT_WINDOW = 300  # seconds (5 minutes)
 LOCKOUT_DURATION = 900  # seconds (15 minutes)
 
-# {ip: [(timestamp, ...), ...]}  — list of failed-attempt timestamps
+# {ip: [timestamp, ...]}  — failed-attempt timestamps within the sliding window
 _failed_attempts: dict[str, list[float]] = {}
+# {ip: monotonic_deadline} — explicit lockout expiry, independent of window pruning
+_lockout_until: dict[str, float] = {}
 
 
-def _get_client_ip(request):
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+def get_client_ip(request):
     return request.META.get("REMOTE_ADDR", "")
 
 
 def _is_locked_out(ip):
     """Return True if *ip* has exceeded the failure threshold."""
+    now = time.monotonic()
+
+    # Check explicit lockout first — survives window pruning
+    deadline = _lockout_until.get(ip)
+    if deadline is not None:
+        if now < deadline:
+            return True
+        del _lockout_until[ip]
+
     attempts = _failed_attempts.get(ip)
     if not attempts:
         return False
-    now = time.monotonic()
-    # Prune attempts outside the window
+
+    # Prune attempts outside the sliding window
     cutoff = now - LOGIN_ATTEMPT_WINDOW
     attempts[:] = [t for t in attempts if t > cutoff]
     if not attempts:
         del _failed_attempts[ip]
         return False
+
     if len(attempts) >= MAX_LOGIN_ATTEMPTS:
-        # Locked out until LOCKOUT_DURATION after the most recent failure
-        return (now - attempts[-1]) < LOCKOUT_DURATION
+        # Threshold crossed — lock out from the most recent failure
+        _lockout_until[ip] = attempts[-1] + LOCKOUT_DURATION
+        return True
     return False
 
 
@@ -44,6 +54,7 @@ def record_failed_attempt(ip):
 
 def clear_failed_attempts(ip):
     _failed_attempts.pop(ip, None)
+    _lockout_until.pop(ip, None)
 
 
 class SimpleAuthMiddleware:
@@ -57,7 +68,7 @@ class SimpleAuthMiddleware:
         if any(request.path.startswith(p) for p in EXEMPT_PATHS):
             # Check lockout on login POST before allowing through
             if request.path == "/login/" and request.method == "POST":
-                ip = _get_client_ip(request)
+                ip = get_client_ip(request)
                 if _is_locked_out(ip):
                     return render(
                         request,

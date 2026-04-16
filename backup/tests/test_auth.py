@@ -76,14 +76,16 @@ class SimpleAuthMiddlewareTest(TestCase):
 @override_settings(REQUIRE_AUTH=True, APP_PASSWORD="secret123")
 class RateLimitTest(TestCase):
     def setUp(self):
-        from backup.middleware.simple_auth import _failed_attempts
+        from backup.middleware.simple_auth import _failed_attempts, _lockout_until
 
         _failed_attempts.clear()
+        _lockout_until.clear()
 
     def tearDown(self):
-        from backup.middleware.simple_auth import _failed_attempts
+        from backup.middleware.simple_auth import _failed_attempts, _lockout_until
 
         _failed_attempts.clear()
+        _lockout_until.clear()
 
     def test_blocks_after_max_attempts(self):
         for _ in range(5):
@@ -124,8 +126,13 @@ class RateLimitTest(TestCase):
         for _ in range(5):
             self.client.post("/login/", {"password": "wrong"})
 
-        # Still locked out
+        # Still locked out shortly after
         mock_time.monotonic.return_value = 1100.0
+        resp = self.client.post("/login/", {"password": "secret123"})
+        self.assertContains(resp, "Too many failed attempts")
+
+        # Still locked out after attempt window (300s) but before lockout (900s)
+        mock_time.monotonic.return_value = 1000.0 + 301.0
         resp = self.client.post("/login/", {"password": "secret123"})
         self.assertContains(resp, "Too many failed attempts")
 
