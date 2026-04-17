@@ -20,20 +20,38 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_apscheduler",
+    "django_prometheus",
     "backup",
 ]
 
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "backup.middleware.simple_auth.SimpleAuthMiddleware",
-]
+# Metrics endpoint — opt-out via env var. Exposes /metrics in Prometheus text format.
+METRICS_ENABLED = os.environ.get("METRICS_ENABLED", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+# Skip django-prometheus' built-in migrations gauges — they query django_migrations
+# at app ready(), which fails during collectstatic before the DB exists.
+PROMETHEUS_EXPORT_MIGRATIONS = False
+
+_PROMETHEUS_BEFORE = ["django_prometheus.middleware.PrometheusBeforeMiddleware"]
+_PROMETHEUS_AFTER = ["django_prometheus.middleware.PrometheusAfterMiddleware"]
+
+MIDDLEWARE = (
+    (_PROMETHEUS_BEFORE if METRICS_ENABLED else [])
+    + [
+        "django.middleware.security.SecurityMiddleware",
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+        "backup.middleware.simple_auth.SimpleAuthMiddleware",
+    ]
+    + (_PROMETHEUS_AFTER if METRICS_ENABLED else [])
+)
 
 ROOT_URLCONF = "config.urls"
 

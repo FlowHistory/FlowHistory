@@ -3,7 +3,7 @@ import time
 from django.conf import settings
 from django.shortcuts import redirect, render
 
-EXEMPT_PATHS = ("/login/", "/health/", "/static/")
+EXEMPT_PATHS = ("/login/", "/health/", "/static/", "/metrics")
 
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_ATTEMPT_WINDOW = 300  # seconds (5 minutes)

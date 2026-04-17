@@ -1,4 +1,5 @@
-from django.urls import path
+from django.conf import settings
+from django.urls import include, path
 
 from . import views
 
@@ -94,3 +95,6 @@ urlpatterns = [
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
 ]
+
+if settings.METRICS_ENABLED:
+    urlpatterns += [path("", include("django_prometheus.urls"))]
