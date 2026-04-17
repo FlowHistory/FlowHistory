@@ -15,7 +15,10 @@ class BackupConfig(AppConfig):
                 "Set the APP_PASSWORD environment variable or disable REQUIRE_AUTH."
             )
 
-        if getattr(settings, "METRICS_ENABLED", False) and not self._collector_registered:
+        if (
+            getattr(settings, "METRICS_ENABLED", False)
+            and not self._collector_registered
+        ):
             from prometheus_client import REGISTRY
 
             from .metrics import FlowHistoryCollector

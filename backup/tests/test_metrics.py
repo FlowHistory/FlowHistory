@@ -18,7 +18,7 @@ class MetricsEndpointTest(TestCase):
     def test_django_prometheus_auto_metrics_present(self):
         resp = self.client.get("/metrics")
         body = resp.content.decode()
-        # django-prometheus emits at least a Python process metric and its own migrations counter
+        # django-prometheus emits at least a python_info process metric.
         self.assertIn("python_info", body)
 
     def test_flowhistory_custom_metrics_present(self):

@@ -65,7 +65,7 @@ class FlowHistoryCollector:
             status = row["status"]
             metric.add_metric([slug, status], row["count"])
             seen.add((slug, status))
-        # Emit zeros for known (instance, status) pairs so absence reads as 0, not missing.
+        # Emit zeros for known (instance, status) pairs so absence reads as 0.
         for slug in slugs:
             for status in ("success", "failed"):
                 if (slug, status) not in seen:
