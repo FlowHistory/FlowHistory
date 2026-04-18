@@ -120,7 +120,7 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 
 #### Option A: Single endpoint in gunicorn, DB-polled domain metrics (chosen)
 
-**Description:** `/metrics` served by gunicorn only. `django-prometheus` handles HTTP/ORM auto-metrics. A custom `Collector` queries the DB on each scrape to emit per-instance domain Gauges (backup counts, last-run age, total size, error state). Scheduler and watcher are not instrumented — their state lives in the DB already.
+**Description:** `/metrics` served by gunicorn only. `django-prometheus` handles HTTP auto-metrics (ORM metrics are not emitted because this ADR keeps the stock SQLite engine). A custom `Collector` queries the DB on each scrape to emit per-instance domain Gauges (backup counts, last-run age, total size, error state). Scheduler and watcher are not instrumented — their state lives in the DB already.
 
 **Pros:**
 - No multiproc coordination.

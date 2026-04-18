@@ -3,7 +3,8 @@ import time
 from django.conf import settings
 from django.shortcuts import redirect, render
 
-EXEMPT_PATHS = ("/login/", "/health/", "/static/", "/metrics")
+EXEMPT_PREFIXES = ("/login/", "/health/", "/static/")
+EXEMPT_EXACT = ("/metrics",)
 
 MAX_LOGIN_ATTEMPTS = 5
 LOGIN_ATTEMPT_WINDOW = 300  # seconds (5 minutes)
@@ -65,7 +66,10 @@ class SimpleAuthMiddleware:
         if not settings.REQUIRE_AUTH:
             return self.get_response(request)
 
-        if any(request.path.startswith(p) for p in EXEMPT_PATHS):
+        if (
+            any(request.path.startswith(p) for p in EXEMPT_PREFIXES)
+            or request.path in EXEMPT_EXACT
+        ):
             # Check lockout on login POST before allowing through
             if request.path == "/login/" and request.method == "POST":
                 ip = get_client_ip(request)

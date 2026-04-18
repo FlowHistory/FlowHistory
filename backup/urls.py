@@ -1,7 +1,12 @@
 from django.conf import settings
+from django.http import HttpResponseNotFound
 from django.urls import include, path
 
 from . import views
+
+
+def _metrics_disabled(request):
+    return HttpResponseNotFound("metrics disabled")
 
 urlpatterns = [
     # Aggregate dashboard
@@ -98,3 +103,5 @@ urlpatterns = [
 
 if settings.METRICS_ENABLED:
     urlpatterns += [path("", include("django_prometheus.urls"))]
+else:
+    urlpatterns += [path("metrics", _metrics_disabled, name="metrics_disabled")]

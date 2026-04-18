@@ -1,7 +1,7 @@
 from importlib import reload
 
 from django.test import TestCase, override_settings
-from django.urls import Resolver404, clear_url_caches, resolve
+from django.urls import clear_url_caches
 from django.utils import timezone
 
 import config.urls
@@ -146,15 +146,15 @@ class MetricsReflectDatabaseStateTest(TestCase):
                 )
 
 
+@override_settings(REQUIRE_AUTH=False)
 class MetricsDisabledTest(TestCase):
-    """METRICS_ENABLED=false must unmap the /metrics URL.
+    """METRICS_ENABLED=false must make /metrics return an explicit 404.
 
     The flag is read at import time in backup/urls.py to extend urlpatterns,
     so override_settings alone is not enough — force a URLconf rebuild under
-    the override, then restore it once the override exits. We assert against
-    the URL resolver directly because this project's custom_404 handler
-    (config/urls.py) redirects unmapped paths to the dashboard, so an HTTP
-    302 is indistinguishable from a matched route doing its own redirect.
+    the override, then restore it once the override exits. We hit the route
+    via the test client and assert a 404 status (not a redirect from
+    custom_404), so scrapers fail fast rather than chasing a dashboard 302.
     """
 
     @staticmethod
@@ -163,23 +163,20 @@ class MetricsDisabledTest(TestCase):
         reload(config.urls)
         clear_url_caches()
 
-    def test_url_unmapped_when_disabled(self):
+    def test_returns_404_when_disabled(self):
         try:
             with override_settings(METRICS_ENABLED=False):
                 self._rebuild_urls()
-                with self.assertRaises(Resolver404):
-                    resolve("/metrics")
+                resp = self.client.get("/metrics")
+                self.assertEqual(resp.status_code, 404)
         finally:
-            # Restore URLs under the original METRICS_ENABLED so sibling tests
-            # still see /metrics registered.
             self._rebuild_urls()
 
-    def test_url_mapped_when_enabled(self):
-        # Sanity check: confirms the reload/restore mechanism itself works.
+    def test_returns_200_when_enabled(self):
         try:
             with override_settings(METRICS_ENABLED=True):
                 self._rebuild_urls()
-                match = resolve("/metrics")
-                self.assertIsNotNone(match)
+                resp = self.client.get("/metrics")
+                self.assertEqual(resp.status_code, 200)
         finally:
             self._rebuild_urls()

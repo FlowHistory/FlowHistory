@@ -23,7 +23,7 @@ A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker 
 - **Dark mode** - with system preference detection and manual toggle
 - **Optional password auth** - simple shared password via environment variable
 - **Health check endpoint** - for Docker healthcheck integration
-- **Prometheus /metrics endpoint** - HTTP, ORM, and per-instance backup metrics for scraping
+- **Prometheus /metrics endpoint** - HTTP and per-instance backup metrics for scraping
 
 ## Setup
 
@@ -232,7 +232,7 @@ All backup/restore endpoints are scoped to an instance by slug.
 
 ### Prometheus scraping
 
-The `/metrics` endpoint exposes HTTP request histograms, ORM query counters, and per-instance domain gauges (`flowhistory_backups`, `flowhistory_backup_bytes`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_has_error`, etc.).
+The `/metrics` endpoint exposes HTTP request histograms and per-instance domain gauges (`flowhistory_backups`, `flowhistory_backup_bytes`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_has_error`, etc.).
 
 The endpoint is unauthenticated by design — Prometheus scrapers don't do session login. Restrict access at the network layer (Docker network, reverse proxy) or set `METRICS_ENABLED=false` to disable it entirely.
 
