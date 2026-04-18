@@ -8,6 +8,7 @@ from . import views
 def _metrics_disabled(request):
     return HttpResponseNotFound("metrics disabled")
 
+
 urlpatterns = [
     # Aggregate dashboard
     path("", views.dashboard, name="dashboard"),
