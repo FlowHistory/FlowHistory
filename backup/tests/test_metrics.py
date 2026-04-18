@@ -18,8 +18,11 @@ def _rebuild_urls():
 
 
 def _ensure_collector_registered():
-    """AppConfig.ready() only registers FlowHistoryCollector when METRICS_ENABLED was true
-    at startup. Force registration here so enabled-metrics tests don't depend on that env."""
+    """Force-register FlowHistoryCollector for tests.
+
+    AppConfig.ready() only registers it when METRICS_ENABLED was true at
+    startup, so enabled-metrics tests can't rely on the ambient env.
+    """
     if not BackupConfig._collector_registered:
         from prometheus_client import REGISTRY
 
@@ -28,7 +31,8 @@ def _ensure_collector_registered():
 
 
 class _MetricsEnabledBase(TestCase):
-    """Force METRICS_ENABLED=True + rebuild URLconf so /metrics exists regardless of the ambient env var."""
+    """Force METRICS_ENABLED=True and rebuild the URLconf so /metrics exists
+    regardless of the ambient env var."""
 
     @classmethod
     def setUpClass(cls):
