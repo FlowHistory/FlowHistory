@@ -1,10 +1,10 @@
 from importlib import reload
 
-import config.urls
 from django.test import TestCase, override_settings
 from django.urls import Resolver404, clear_url_caches, resolve
 from django.utils import timezone
 
+import config.urls
 from backup import urls as backup_urls
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
 
