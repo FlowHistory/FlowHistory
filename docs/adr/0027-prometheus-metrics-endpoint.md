@@ -196,7 +196,7 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 - [ ] Update `config/settings.py`: add `django_prometheus` to `INSTALLED_APPS`, wrap `MIDDLEWARE` with before/after middleware, add `METRICS_ENABLED` env flag.
 - [ ] Add `/metrics/` route in `backup/urls.py` (guarded by `METRICS_ENABLED`) using `include('django_prometheus.urls')`.
 - [ ] Extend `EXEMPT_PATHS` in `backup/middleware/simple_auth.py` to include `/metrics/`.
-- [ ] Create `backup/metrics.py` with `FlowHistoryCollector` implementing `collect()` for `flowhistory_backup_total`, `flowhistory_backup_bytes_total`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_enabled`, `flowhistory_instance_has_error`, `flowhistory_restore_total`, `flowhistory_pinned_backup_total`.
+- [ ] Create `backup/metrics.py` with `FlowHistoryCollector` implementing `collect()` for `flowhistory_backups`, `flowhistory_backup_bytes`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_enabled`, `flowhistory_instance_has_error`, `flowhistory_restores`, `flowhistory_pinned_backups`. Use plain names (no `_total` suffix) because these are Gauges — `_total` is reserved for monotonic Counters in Prometheus conventions.
 - [ ] Register the collector in `backup/apps.py` `ready()` under the `METRICS_ENABLED` guard.
 - [ ] Add `backup/tests/test_metrics.py` covering: auth bypass with `REQUIRE_AUTH=true`, correct content-type, metric presence, DB-state reflection, `METRICS_ENABLED=false` returns 404, label cardinality bounds.
 - [ ] Update `README.md`: add `/metrics` to endpoint docs, add `METRICS_ENABLED` to env-var table, include Prometheus scrape-config example.

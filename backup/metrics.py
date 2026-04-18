@@ -50,7 +50,7 @@ class FlowHistoryCollector:
 
     def _backup_totals(self, slugs):
         metric = GaugeMetricFamily(
-            "flowhistory_backup_total",
+            "flowhistory_backups",
             "Count of backup records per instance and status.",
             labels=["instance", "status"],
         )
@@ -74,7 +74,7 @@ class FlowHistoryCollector:
 
     def _backup_bytes(self, slugs):
         metric = GaugeMetricFamily(
-            "flowhistory_backup_bytes_total",
+            "flowhistory_backup_bytes",
             "Total size in bytes of successful backups per instance.",
             labels=["instance"],
         )
@@ -103,7 +103,7 @@ class FlowHistoryCollector:
 
     def _pinned_totals(self, slugs):
         metric = GaugeMetricFamily(
-            "flowhistory_pinned_backup_total",
+            "flowhistory_pinned_backups",
             "Count of pinned backups per instance.",
             labels=["instance"],
         )
@@ -120,7 +120,7 @@ class FlowHistoryCollector:
 
     def _restore_totals(self, slugs):
         metric = GaugeMetricFamily(
-            "flowhistory_restore_total",
+            "flowhistory_restores",
             "Count of restore attempts per instance and status.",
             labels=["instance", "status"],
         )

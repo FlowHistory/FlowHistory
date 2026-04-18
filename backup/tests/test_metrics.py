@@ -1,6 +1,11 @@
+from importlib import reload
+
+import config.urls
 from django.test import TestCase, override_settings
+from django.urls import Resolver404, clear_url_caches, resolve
 from django.utils import timezone
 
+from backup import urls as backup_urls
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
 
 
@@ -25,13 +30,13 @@ class MetricsEndpointTest(TestCase):
         resp = self.client.get("/metrics")
         body = resp.content.decode()
         expected = [
-            "flowhistory_backup_total",
-            "flowhistory_backup_bytes_total",
+            "flowhistory_backups",
+            "flowhistory_backup_bytes",
             "flowhistory_last_successful_backup_timestamp_seconds",
             "flowhistory_instance_enabled",
             "flowhistory_instance_has_error",
-            "flowhistory_restore_total",
-            "flowhistory_pinned_backup_total",
+            "flowhistory_restores",
+            "flowhistory_pinned_backups",
         ]
         for name in expected:
             self.assertIn(name, body, f"missing metric {name}")
@@ -91,24 +96,24 @@ class MetricsReflectDatabaseStateTest(TestCase):
     def test_backup_counts_by_status(self):
         body = self.client.get("/metrics").content.decode()
         self.assertIn(
-            'flowhistory_backup_total{instance="home",status="success"} 2.0', body
+            'flowhistory_backups{instance="home",status="success"} 2.0', body
         )
         self.assertIn(
-            'flowhistory_backup_total{instance="home",status="failed"} 1.0', body
+            'flowhistory_backups{instance="home",status="failed"} 1.0', body
         )
 
     def test_backup_bytes(self):
         body = self.client.get("/metrics").content.decode()
-        self.assertIn('flowhistory_backup_bytes_total{instance="home"} 6912.0', body)
+        self.assertIn('flowhistory_backup_bytes{instance="home"} 6912.0', body)
 
     def test_pinned_count(self):
         body = self.client.get("/metrics").content.decode()
-        self.assertIn('flowhistory_pinned_backup_total{instance="home"} 1.0', body)
+        self.assertIn('flowhistory_pinned_backups{instance="home"} 1.0', body)
 
     def test_restore_counts(self):
         body = self.client.get("/metrics").content.decode()
         self.assertIn(
-            'flowhistory_restore_total{instance="home",status="success"} 1.0', body
+            'flowhistory_restores{instance="home",status="success"} 1.0', body
         )
 
     def test_instance_enabled_flag(self):
@@ -143,3 +148,42 @@ class MetricsReflectDatabaseStateTest(TestCase):
                     allowed_labels,
                     f"Unexpected label {key!r} on metric line: {line}",
                 )
+
+
+class MetricsDisabledTest(TestCase):
+    """METRICS_ENABLED=false must unmap the /metrics URL.
+
+    The flag is read at import time in backup/urls.py to extend urlpatterns,
+    so override_settings alone is not enough — force a URLconf rebuild under
+    the override, then restore it once the override exits. We assert against
+    the URL resolver directly because this project's custom_404 handler
+    (config/urls.py) redirects unmapped paths to the dashboard, so an HTTP
+    302 is indistinguishable from a matched route doing its own redirect.
+    """
+
+    @staticmethod
+    def _rebuild_urls():
+        reload(backup_urls)
+        reload(config.urls)
+        clear_url_caches()
+
+    def test_url_unmapped_when_disabled(self):
+        try:
+            with override_settings(METRICS_ENABLED=False):
+                self._rebuild_urls()
+                with self.assertRaises(Resolver404):
+                    resolve("/metrics")
+        finally:
+            # Restore URLs under the original METRICS_ENABLED so sibling tests
+            # still see /metrics registered.
+            self._rebuild_urls()
+
+    def test_url_mapped_when_enabled(self):
+        # Sanity check: confirms the reload/restore mechanism itself works.
+        try:
+            with override_settings(METRICS_ENABLED=True):
+                self._rebuild_urls()
+                match = resolve("/metrics")
+                self.assertIsNotNone(match)
+        finally:
+            self._rebuild_urls()
