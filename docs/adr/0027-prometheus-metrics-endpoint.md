@@ -16,7 +16,7 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 
 - Three processes share one container: gunicorn (2 workers), `runapscheduler`, `runwatcher`.
 - SQLite holds the authoritative state for every domain object worth monitoring: `NodeRedConfig.last_successful_backup`, `NodeRedConfig.last_backup_error`, `BackupRecord.status`, `BackupRecord.file_size`, `RestoreRecord.status`.
-- Authentication is optional and session-based (`SimpleAuthMiddleware`). `/health/`, `/login/`, `/logout/`, and `/static/` are exempt from auth via a hardcoded path tuple.
+- Authentication is optional and session-based (`SimpleAuthMiddleware`). `/login/`, `/health/`, `/static/`, and `/metrics` are exempt from auth via a hardcoded path tuple.
 - No Prometheus client or metrics instrumentation exists in the codebase.
 
 ### Requirements
@@ -58,13 +58,13 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 
 **Pros:**
 - Instant coverage of HTTP request count, latency histogram, and status codes.
-- Free ORM query counters.
 - Drop-in URL include — no hand-written export view.
 - Still allows custom metrics for domain data.
 
 **Cons:**
 - Adds middleware to every request.
 - One more dependency to keep compatible with Django's release cadence.
+- ORM query counters only emit if the DB `ENGINE` is switched to `django_prometheus.db.backends.sqlite3`. This ADR keeps the stock `django.db.backends.sqlite3` engine, so only HTTP auto-metrics are emitted — domain/DB state is captured separately by the custom collector below.
 
 #### Option C: `django-prometheus` + `prometheus-client` multiproc
 
@@ -180,6 +180,7 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 - `/metrics` is publicly readable inside the Docker network — operators must ensure it isn't exposed to untrusted networks.
 - `django-prometheus` middleware runs on every request. Overhead is small but non-zero.
 - No realtime scheduler job duration or watcher event rate metrics until a follow-up ADR.
+- HTTP auto-metrics (`django_http_*`) are per-worker: gunicorn runs 2 workers without `PROMETHEUS_MULTIPROC_DIR`, so each scrape hits one worker and counters/histograms can appear to reset between scrapes. Custom domain metrics (`flowhistory_*`) are unaffected because the collector reads the shared SQLite DB. Operators who need smooth HTTP metrics can either run a single gunicorn worker or graduate to multiproc mode in a follow-up.
 
 ### Risks & Mitigations
 
@@ -194,8 +195,8 @@ ADR 0001 listed monitoring and Grafana integration as future work. This ADR acts
 
 - [ ] Add `django-prometheus` to `pyproject.toml`; verify compatibility with Django 6.0.3 inside the dev container.
 - [ ] Update `config/settings.py`: add `django_prometheus` to `INSTALLED_APPS`, wrap `MIDDLEWARE` with before/after middleware, add `METRICS_ENABLED` env flag.
-- [ ] Add `/metrics/` route in `backup/urls.py` (guarded by `METRICS_ENABLED`) using `include('django_prometheus.urls')`.
-- [ ] Extend `EXEMPT_PATHS` in `backup/middleware/simple_auth.py` to include `/metrics/`.
+- [ ] Add `/metrics` route in `backup/urls.py` (guarded by `METRICS_ENABLED`) using `include('django_prometheus.urls')`.
+- [ ] Extend `EXEMPT_PATHS` in `backup/middleware/simple_auth.py` to include `/metrics`.
 - [ ] Create `backup/metrics.py` with `FlowHistoryCollector` implementing `collect()` for `flowhistory_backups`, `flowhistory_backup_bytes`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_enabled`, `flowhistory_instance_has_error`, `flowhistory_restores`, `flowhistory_pinned_backups`. Use plain names (no `_total` suffix) because these are Gauges — `_total` is reserved for monotonic Counters in Prometheus conventions.
 - [ ] Register the collector in `backup/apps.py` `ready()` under the `METRICS_ENABLED` guard.
 - [ ] Add `backup/tests/test_metrics.py` covering: auth bypass with `REQUIRE_AUTH=true`, correct content-type, metric presence, DB-state reflection, `METRICS_ENABLED=false` returns 404, label cardinality bounds.
