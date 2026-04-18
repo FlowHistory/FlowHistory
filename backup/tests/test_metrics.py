@@ -6,11 +6,46 @@ from django.utils import timezone
 
 import config.urls
 from backup import urls as backup_urls
+from backup.apps import BackupConfig
+from backup.metrics import FlowHistoryCollector
 from backup.models import BackupRecord, NodeRedConfig, RestoreRecord
 
 
-@override_settings(REQUIRE_AUTH=False)
-class MetricsEndpointTest(TestCase):
+def _rebuild_urls():
+    reload(backup_urls)
+    reload(config.urls)
+    clear_url_caches()
+
+
+def _ensure_collector_registered():
+    """AppConfig.ready() only registers FlowHistoryCollector when METRICS_ENABLED was true
+    at startup. Force registration here so enabled-metrics tests don't depend on that env."""
+    if not BackupConfig._collector_registered:
+        from prometheus_client import REGISTRY
+
+        REGISTRY.register(FlowHistoryCollector())
+        BackupConfig._collector_registered = True
+
+
+class _MetricsEnabledBase(TestCase):
+    """Force METRICS_ENABLED=True + rebuild URLconf so /metrics exists regardless of the ambient env var."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        _rebuild_urls()
+        _ensure_collector_registered()
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            super().tearDownClass()
+        finally:
+            _rebuild_urls()
+
+
+@override_settings(REQUIRE_AUTH=False, METRICS_ENABLED=True)
+class MetricsEndpointTest(_MetricsEnabledBase):
     def test_returns_200(self):
         resp = self.client.get("/metrics")
         self.assertEqual(resp.status_code, 200)
@@ -42,8 +77,8 @@ class MetricsEndpointTest(TestCase):
             self.assertIn(name, body, f"missing metric {name}")
 
 
-@override_settings(REQUIRE_AUTH=True, APP_PASSWORD="secret")
-class MetricsAuthBypassTest(TestCase):
+@override_settings(REQUIRE_AUTH=True, APP_PASSWORD="secret", METRICS_ENABLED=True)
+class MetricsAuthBypassTest(_MetricsEnabledBase):
     def test_accessible_without_login(self):
         """Scrapers can't do form login — /metrics must bypass SimpleAuthMiddleware."""
         resp = self.client.get("/metrics")
@@ -55,8 +90,8 @@ class MetricsAuthBypassTest(TestCase):
         self.assertIn("/login/", resp["Location"])
 
 
-@override_settings(REQUIRE_AUTH=False)
-class MetricsReflectDatabaseStateTest(TestCase):
+@override_settings(REQUIRE_AUTH=False, METRICS_ENABLED=True)
+class MetricsReflectDatabaseStateTest(_MetricsEnabledBase):
     def setUp(self):
         self.config = NodeRedConfig.objects.create(
             name="Home",
@@ -157,26 +192,20 @@ class MetricsDisabledTest(TestCase):
     custom_404), so scrapers fail fast rather than chasing a dashboard 302.
     """
 
-    @staticmethod
-    def _rebuild_urls():
-        reload(backup_urls)
-        reload(config.urls)
-        clear_url_caches()
-
     def test_returns_404_when_disabled(self):
         try:
             with override_settings(METRICS_ENABLED=False):
-                self._rebuild_urls()
+                _rebuild_urls()
                 resp = self.client.get("/metrics")
                 self.assertEqual(resp.status_code, 404)
         finally:
-            self._rebuild_urls()
+            _rebuild_urls()
 
     def test_returns_200_when_enabled(self):
         try:
             with override_settings(METRICS_ENABLED=True):
-                self._rebuild_urls()
+                _rebuild_urls()
                 resp = self.client.get("/metrics")
                 self.assertEqual(resp.status_code, 200)
         finally:
-            self._rebuild_urls()
+            _rebuild_urls()
