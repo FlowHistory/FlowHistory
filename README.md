@@ -23,6 +23,7 @@ A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker 
 - **Dark mode** - with system preference detection and manual toggle
 - **Optional password auth** - simple shared password via environment variable
 - **Health check endpoint** - for Docker healthcheck integration
+- **Prometheus /metrics endpoint** - HTTP and per-instance backup metrics for scraping
 
 ## Setup
 
@@ -136,6 +137,7 @@ The UI is available at `http://<host>:9472/`. With a single instance, the dashbo
 | `REQUIRE_AUTH` | `false` | Enable password authentication |
 | `APP_PASSWORD` | | Password for web UI access |
 | `IMPORT_MAX_SIZE` | `52428800` | Maximum upload size for backup import in bytes (default 50 MB) |
+| `METRICS_ENABLED` | `true` | Expose Prometheus `/metrics` endpoint (public, no auth) |
 
 ### Instance configuration
 
@@ -226,6 +228,23 @@ All backup/restore endpoints are scoped to an instance by slug.
 | `/api/instance/<slug>/test-connection/` | POST | Test remote connection |
 | `/api/instance/<slug>/notifications/test/` | POST | Send test notification |
 | `/health/` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics (public; disable with `METRICS_ENABLED=false`) |
+
+### Prometheus scraping
+
+The `/metrics` endpoint exposes HTTP request histograms and per-instance domain gauges (`flowhistory_backups`, `flowhistory_backup_bytes`, `flowhistory_last_successful_backup_timestamp_seconds`, `flowhistory_instance_has_error`, etc.).
+
+The endpoint is unauthenticated by design — Prometheus scrapers don't do session login. Restrict access at the network layer (Docker network, reverse proxy) or set `METRICS_ENABLED=false` to disable it entirely.
+
+Example Prometheus scrape config:
+
+```yaml
+scrape_configs:
+  - job_name: flowhistory
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["flowhistory:9472"]
+```
 
 ## Development
 

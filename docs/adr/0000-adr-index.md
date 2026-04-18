@@ -43,3 +43,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0024](0024-views-and-tests-refactor.md) | Split views.py and tests.py into Packages | **Implemented** |
 | [0025](0025-backup-import-upload.md) | Backup Import/Upload | **Implemented** |
 | [0026](0026-auth-security-hardening.md) | Auth Security Hardening | **Proposed** |
+| [0027](0027-prometheus-metrics-endpoint.md) | Prometheus Metrics Endpoint | **Proposed** |
