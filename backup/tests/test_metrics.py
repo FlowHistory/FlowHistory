@@ -95,12 +95,8 @@ class MetricsReflectDatabaseStateTest(TestCase):
 
     def test_backup_counts_by_status(self):
         body = self.client.get("/metrics").content.decode()
-        self.assertIn(
-            'flowhistory_backups{instance="home",status="success"} 2.0', body
-        )
-        self.assertIn(
-            'flowhistory_backups{instance="home",status="failed"} 1.0', body
-        )
+        self.assertIn('flowhistory_backups{instance="home",status="success"} 2.0', body)
+        self.assertIn('flowhistory_backups{instance="home",status="failed"} 1.0', body)
 
     def test_backup_bytes(self):
         body = self.client.get("/metrics").content.decode()
