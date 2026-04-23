@@ -329,6 +329,7 @@ function getSelectedIds() {
 document.addEventListener('change', function (e) {
   if (e.target && e.target.classList && e.target.classList.contains('backup-checkbox')) {
     mirrorCheckbox(e.target);
+    updateBulkBar();
   }
 });
 

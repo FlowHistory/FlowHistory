@@ -63,7 +63,7 @@
       <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
         {% for backup in backups %}
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-          <td class="px-4 py-2"><input type="checkbox" class="backup-checkbox rounded border-gray-300 dark:border-gray-600" value="{{ backup.pk }}" onchange="updateBulkBar()"></td>
+          <td class="px-4 py-2"><input type="checkbox" class="backup-checkbox rounded border-gray-300 dark:border-gray-600" value="{{ backup.pk }}"></td>
           <td class="px-4 py-2">
             <a href="{% url 'backup_detail' config.slug backup.pk %}" class="text-blue-600 hover:underline dark:text-blue-400">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
             {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
@@ -90,7 +90,7 @@
           </td>
           <td class="px-4 py-2 text-right">
             <div class="relative inline-block">
-              <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)">&#x2026;</button>
+              <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)" aria-label="Backup actions">&#x2026;</button>
               <div class="dropdown-menu hidden">
                 {% include "backup/components/_backup_actions.html" with backup=backup config=config %}
               </div>
