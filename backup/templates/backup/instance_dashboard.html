@@ -44,9 +44,10 @@
   {% endif %}
 </div>
 
-<!-- Backup History Table -->
+<!-- Backup History -->
 {% include "backup/components/_card_section_start.html" with title="Backup History" body_class="p-0" %}
-  <div class="overflow-visible">
+  <!-- Desktop table (md and up) -->
+  <div class="hidden overflow-visible md:block">
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-700">
@@ -91,16 +92,7 @@
             <div class="relative inline-block">
               <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)">&#x2026;</button>
               <div class="dropdown-menu hidden">
-                <button class="dropdown-item" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
-                <button class="dropdown-item" onclick="setNotes({{ backup.pk }}, '{{ backup.notes|escapejs }}')">Notes</button>
-                <button class="dropdown-item" onclick="togglePin({{ backup.pk }})">{% if backup.is_pinned %}Unpin{% else %}Pin{% endif %}</button>
-                {% if backup.status == "success" %}
-                <a href="{% url 'backup_download' config.slug backup.pk %}" class="dropdown-item">Download</a>
-                <a href="{% url 'diff_vs_previous' config.slug backup.pk %}" class="dropdown-item">View Diff</a>
-                <div class="dropdown-divider"></div>
-                <button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Restore</button>
-                {% endif %}
-                <button class="dropdown-item-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>
+                {% include "backup/components/_backup_actions.html" with backup=backup config=config %}
               </div>
             </div>
           </td>
@@ -114,6 +106,25 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- Mobile card list (below md) -->
+  <div class="md:hidden">
+    {% if backups %}
+    <div class="flex items-center gap-2 border-b border-gray-200 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-400">
+      <input type="checkbox" id="select-all-mobile" onchange="toggleSelectAll(this)" class="rounded border-gray-300 dark:border-gray-600">
+      <label for="select-all-mobile">Select all</label>
+    </div>
+    <div class="space-y-2 p-2">
+      {% for backup in backups %}
+        {% include "backup/components/_backup_card.html" with backup=backup config=config %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+      No backups yet. Tap "Create Backup" to get started.
+    </div>
+    {% endif %}
   </div>
 {% include "backup/components/_card_section_end.html" %}
 
