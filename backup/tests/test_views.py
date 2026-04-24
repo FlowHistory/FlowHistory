@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -286,27 +287,32 @@ class DashboardDualRenderTest(TempBackupDirMixin, TestCase):
 
     def test_renders_desktop_table_block(self):
         html = self._get_dashboard()
-        self.assertIn('class="hidden overflow-visible md:block"', html)
+        # Match the wrapper <div> by its responsive classes, tolerant of class reorder.
+        self.assertRegex(
+            html,
+            r'<div\s+class="[^"]*\bhidden\b[^"]*\bmd:block\b[^"]*"'
+            r'|<div\s+class="[^"]*\bmd:block\b[^"]*\bhidden\b[^"]*"',
+        )
         self.assertIn("<table", html)
 
     def test_renders_mobile_card_block(self):
         html = self._get_dashboard()
-        self.assertIn('class="md:hidden"', html)
+        self.assertRegex(html, r'<div\s+class="[^"]*\bmd:hidden\b[^"]*"')
         self.assertIn("select-all-mobile", html)
 
     def test_each_backup_has_two_checkboxes_with_same_value(self):
         html = self._get_dashboard()
+        input_tags = re.findall(r"<input\b[^>]*>", html)
         for rec in (self.rec1, self.rec2):
-            needle = f'class="backup-checkbox'
-            value_attr = f'value="{rec.pk}"'
-            # Each backup should appear in both the desktop table and the mobile card.
-            count = sum(
-                1
-                for line in html.split("<input")
-                if needle in line and value_attr in line
-            )
+            matching = [
+                tag
+                for tag in input_tags
+                if "backup-checkbox" in tag and f'value="{rec.pk}"' in tag
+            ]
             self.assertEqual(
-                count, 2, f"Backup {rec.pk} should have exactly 2 .backup-checkbox elements"
+                len(matching),
+                2,
+                f"Backup {rec.pk} should have exactly 2 .backup-checkbox elements",
             )
 
     def test_actions_partial_used_by_both_layouts(self):
