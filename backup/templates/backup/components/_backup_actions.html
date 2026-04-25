@@ -1,0 +1,11 @@
+{# Single source of truth for per-backup action menu items. Used by the desktop table row and the mobile card. #}
+<button class="dropdown-item" onclick="setLabel({{ backup.pk }}, '{{ backup.label|escapejs }}')">Label</button>
+<button class="dropdown-item" onclick="setNotes({{ backup.pk }}, '{{ backup.notes|escapejs }}')">Notes</button>
+<button class="dropdown-item" onclick="togglePin({{ backup.pk }})">{% if backup.is_pinned %}Unpin{% else %}Pin{% endif %}</button>
+{% if backup.status == "success" %}
+<a href="{% url 'backup_download' config.slug backup.pk %}" class="dropdown-item">Download</a>
+<a href="{% url 'diff_vs_previous' config.slug backup.pk %}" class="dropdown-item">View Diff</a>
+<div class="dropdown-divider"></div>
+<button class="dropdown-item-warning" onclick="restoreBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Restore</button>
+{% endif %}
+<button class="dropdown-item-danger" onclick="deleteBackup({{ backup.pk }}, '{{ backup.filename|escapejs }}')">Delete</button>

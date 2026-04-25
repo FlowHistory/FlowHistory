@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -260,3 +261,76 @@ class ApiTestConnectionTest(TestCase):
             f"/api/instance/{self.remote_config.slug}/test-connection/"
         )
         self.assertEqual(resp.status_code, 500)
+
+
+@override_settings(REQUIRE_AUTH=False)
+class DashboardDualRenderTest(TempBackupDirMixin, TestCase):
+    """ADR 0028: backup history must render as both desktop table and mobile cards."""
+
+    def setUp(self):
+        super().setUp()
+        self.flows_file = self.backup_dir / "flows.json"
+        self.flows_file.write_text(json.dumps(SAMPLE_FLOWS))
+        self.config = NodeRedConfig.objects.create(
+            name="Dual Render", flows_path=str(self.flows_file)
+        )
+        self.rec1 = create_backup(self.config, trigger="manual")
+        self.flows_file.write_text(
+            json.dumps([{"id": "t", "type": "tab", "label": "Changed"}])
+        )
+        self.rec2 = create_backup(self.config, trigger="manual")
+
+    def _get_dashboard(self):
+        resp = self.client.get(f"/instance/{self.config.slug}/")
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def test_renders_desktop_table_block(self):
+        html = self._get_dashboard()
+        # Match the wrapper <div> by its responsive classes, tolerant of class reorder.
+        self.assertRegex(
+            html,
+            r'<div\s+class="[^"]*\bhidden\b[^"]*\bmd:block\b[^"]*"'
+            r'|<div\s+class="[^"]*\bmd:block\b[^"]*\bhidden\b[^"]*"',
+        )
+        self.assertIn("<table", html)
+
+    def test_renders_mobile_card_block(self):
+        html = self._get_dashboard()
+        self.assertRegex(html, r'<div\s+class="[^"]*\bmd:hidden\b[^"]*"')
+        self.assertIn("select-all-mobile", html)
+
+    def test_each_backup_has_two_checkboxes_with_same_value(self):
+        html = self._get_dashboard()
+        input_tags = re.findall(r"<input\b[^>]*>", html)
+        for rec in (self.rec1, self.rec2):
+            matching = [
+                tag
+                for tag in input_tags
+                if "backup-checkbox" in tag and f'value="{rec.pk}"' in tag
+            ]
+            self.assertEqual(
+                len(matching),
+                2,
+                f"Backup {rec.pk} should have exactly 2 .backup-checkbox elements",
+            )
+
+    def test_actions_partial_used_by_both_layouts(self):
+        # Each backup's Delete handler call appears once per layout = twice total.
+        html = self._get_dashboard()
+        for rec in (self.rec1, self.rec2):
+            occurrences = html.count(f"deleteBackup({rec.pk}")
+            self.assertEqual(
+                occurrences,
+                2,
+                f"Backup {rec.pk} delete action should appear twice (table + card)",
+            )
+
+    def test_empty_state_in_both_layouts(self):
+        empty_config = NodeRedConfig.objects.create(
+            name="Empty", flows_path=str(self.flows_file)
+        )
+        resp = self.client.get(f"/instance/{empty_config.slug}/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("No backups yet", html)

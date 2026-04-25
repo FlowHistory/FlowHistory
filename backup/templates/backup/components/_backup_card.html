@@ -1,0 +1,40 @@
+{# Mobile card view for a single backup. Pairs with the desktop table row in instance_dashboard.html. #}
+<div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+  <div class="flex items-start justify-between gap-2">
+    <div class="flex items-start gap-2 min-w-0 flex-1">
+      <input type="checkbox" class="backup-checkbox mt-1 rounded border-gray-300 dark:border-gray-600" value="{{ backup.pk }}" aria-labelledby="backup-card-date-{{ backup.pk }}">
+      <div class="min-w-0 flex-1">
+        <a id="backup-card-date-{{ backup.pk }}" href="{% url 'backup_detail' config.slug backup.pk %}" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">{{ backup.created_at|date:"Y-m-d H:i" }}</a>
+        {% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed or backup.changes_summary.tabs_modified %}
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          {% if backup.changes_summary.tabs_added %}+{{ backup.changes_summary.tabs_added|length }} tab{{ backup.changes_summary.tabs_added|length|pluralize }}{% endif %}
+          {% if backup.changes_summary.tabs_removed %}{% if backup.changes_summary.tabs_added %}, {% endif %}-{{ backup.changes_summary.tabs_removed|length }} tab{{ backup.changes_summary.tabs_removed|length|pluralize }}{% endif %}
+          {% if backup.changes_summary.tabs_modified %}{% if backup.changes_summary.tabs_added or backup.changes_summary.tabs_removed %}, {% endif %}{{ backup.changes_summary.tabs_modified|length }} modified{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      {% if backup.status == "success" %}
+      {% include "backup/components/_badge.html" with text="Success" variant="success" %}
+      {% else %}
+      {% include "backup/components/_badge.html" with text="Failed" variant="danger" %}
+      {% endif %}
+      <div class="relative inline-block">
+        <button class="btn-secondary px-2 py-1" onclick="toggleDropdown(event)" aria-label="Backup actions">&#x2026;</button>
+        <div class="dropdown-menu hidden">
+          {% include "backup/components/_backup_actions.html" with backup=backup config=config %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+    {% include "backup/components/_badge.html" with text=backup.get_trigger_display variant="secondary" %}
+    <span>{{ backup.file_size|filesizeformat }}</span>
+    <span class="flex items-center gap-1">
+      {% if backup.is_pinned %}<span title="Pinned — protected from retention" class="text-amber-500">&#128204;</span>{% endif %}
+      <span class="truncate">{{ backup.label|default:"-" }}</span>
+      {% if backup.notes %}<span title="{{ backup.notes|truncatewords:20 }}" class="cursor-help text-blue-400">&#9998;</span>{% endif %}
+    </span>
+  </div>
+</div>

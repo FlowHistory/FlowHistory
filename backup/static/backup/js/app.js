@@ -272,6 +272,9 @@ function compareDiff(backupId) {
 }
 
 // Bulk actions
+// The dashboard renders each backup twice (desktop table + mobile card) so the
+// page works on any viewport. Selection state is mirrored across same-value
+// checkboxes and IDs are deduped so counts stay correct.
 function toggleSelectAll(checkbox) {
   document.querySelectorAll('.backup-checkbox').forEach(function (cb) {
     cb.checked = checkbox.checked;
@@ -279,8 +282,15 @@ function toggleSelectAll(checkbox) {
   updateBulkBar();
 }
 
+function mirrorCheckbox(cb) {
+  document.querySelectorAll('.backup-checkbox[value="' + cb.value + '"]').forEach(function (other) {
+    if (other !== cb) other.checked = cb.checked;
+  });
+}
+
 function updateBulkBar() {
-  var count = getSelectedIds().length;
+  var ids = getSelectedIds();
+  var count = ids.length;
   var bar = document.getElementById('bulk-bar');
   var label = document.getElementById('bulk-count');
   if (!bar) return;
@@ -290,11 +300,11 @@ function updateBulkBar() {
   } else {
     bar.classList.add('hidden');
   }
-  var all = document.querySelectorAll('.backup-checkbox');
-  var selectAll = document.getElementById('select-all');
-  if (selectAll && all.length) {
-    selectAll.checked = count === all.length;
-  }
+  var totalIds = new Set();
+  document.querySelectorAll('.backup-checkbox').forEach(function (cb) { totalIds.add(cb.value); });
+  document.querySelectorAll('#select-all, #select-all-mobile').forEach(function (selectAll) {
+    selectAll.checked = totalIds.size > 0 && count === totalIds.size;
+  });
   var compareBtn = document.getElementById('bulk-compare');
   if (compareBtn) {
     if (count === 2) {
@@ -306,12 +316,22 @@ function updateBulkBar() {
 }
 
 function getSelectedIds() {
+  var seen = new Set();
   var ids = [];
   document.querySelectorAll('.backup-checkbox:checked').forEach(function (cb) {
+    if (seen.has(cb.value)) return;
+    seen.add(cb.value);
     ids.push(parseInt(cb.value, 10));
   });
   return ids;
 }
+
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.classList && e.target.classList.contains('backup-checkbox')) {
+    mirrorCheckbox(e.target);
+    updateBulkBar();
+  }
+});
 
 function bulkAction(action) {
   var ids = getSelectedIds();
