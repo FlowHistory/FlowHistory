@@ -16,6 +16,7 @@ _BUILD_REPO = os.environ.get("BUILD_REPO", "")
 def auth_context(request):
     return {
         "require_auth": settings.REQUIRE_AUTH,
+        "demo_mode": settings.DEMO_MODE,
         "app_version": _APP_VERSION,
         "git_commit_short": _GIT_COMMIT_SHORT,
         "build_date": _BUILD_DATE,

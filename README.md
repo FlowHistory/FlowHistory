@@ -125,6 +125,18 @@ docker compose up -d --build
 
 The UI is available at `http://<host>:9472/`. With a single instance, the dashboard auto-redirects to it. With multiple instances, you'll see an instance overview grid.
 
+### Demo mode
+
+Set `DEMO_MODE=true` to turn any deployment into a public, read-only browseable demo:
+
+- Every `GET` page renders normally; the UI is fully navigable.
+- Every `POST`/`PUT`/`DELETE` is intercepted with a "Demo mode: changes are not saved" toast, so no real backup is written, no flow is restored to a Node-RED instance, and no notification webhook fires.
+- The scheduler and file/API watcher are skipped at startup, so no scheduled or change-triggered job runs in the background.
+- A yellow banner is shown under the navbar on every page.
+- Authentication is forced off (`REQUIRE_AUTH` is ignored) so the demo URL is reachable without a password.
+
+`DEMO_MODE` does not erase or rewrite existing data — it just blocks new writes. To reset state, recycle the container.
+
 ## Environment Variables
 
 ### General
@@ -138,6 +150,7 @@ The UI is available at `http://<host>:9472/`. With a single instance, the dashbo
 | `APP_PASSWORD` | | Password for web UI access |
 | `IMPORT_MAX_SIZE` | `52428800` | Maximum upload size for backup import in bytes (default 50 MB) |
 | `METRICS_ENABLED` | `true` | Expose Prometheus `/metrics` endpoint (public, no auth) |
+| `DEMO_MODE` | `false` | Read-only demo deployment — see [Demo mode](#demo-mode) below |
 
 ### Instance configuration
 
