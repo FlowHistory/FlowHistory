@@ -33,6 +33,12 @@
     </div>
   </nav>
 
+  {% if demo_mode %}
+  <div class="border-b border-yellow-300 bg-yellow-100 px-4 py-2 text-center text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200" role="status">
+    <strong>Demo Mode</strong> — changes are not saved. Restart the container for a fresh state.
+  </div>
+  {% endif %}
+
   <main class="flex-1 px-4 py-4">
     {% if messages %}
     {% for message in messages %}
