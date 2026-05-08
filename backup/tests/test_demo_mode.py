@@ -55,9 +55,7 @@ class DemoModeBlocksApiWritesTest(TestCase):
         self.assertEqual(BackupRecord.objects.count(), before)
 
     def test_api_test_connection_returns_demo_envelope(self):
-        resp = self.client.post(
-            f"/api/instance/{self.config.slug}/test-connection/"
-        )
+        resp = self.client.post(f"/api/instance/{self.config.slug}/test-connection/")
         self.assertEqual(resp.status_code, 200)
         body = json.loads(resp.content)
         self.assertEqual(body["status"], "error")
