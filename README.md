@@ -135,7 +135,7 @@ Set `DEMO_MODE=true` to turn any deployment into a public, read-only browseable 
 - A yellow banner is shown under the navbar on every page.
 - Authentication is forced off (`REQUIRE_AUTH` is ignored) so the demo URL is reachable without a password.
 
-`DEMO_MODE` does not erase or rewrite existing data — it just blocks new writes. To reset state, recycle the container.
+`DEMO_MODE` does not erase or rewrite existing data — it just blocks new writes and skips startup tasks (storage migration, scheduler, watcher) that would otherwise touch persisted state. To start a fresh demo, deploy the container against empty `data/` and `backups/` volumes.
 
 ## Environment Variables
 

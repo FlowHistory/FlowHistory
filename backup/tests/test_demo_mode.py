@@ -76,6 +76,27 @@ class DemoModeBlocksHtmlWritesTest(TestCase):
         self.assertTrue(NodeRedConfig.objects.filter(slug=slug).exists())
 
 
+@override_settings(DEMO_MODE=True, REQUIRE_AUTH=False)
+class DemoModeBlocksArchiveDownloadTest(TestCase):
+    """Backup archive bytes (which can include flows_cred.json / settings.js)
+    must not be served over an unauthenticated demo deployment."""
+
+    def test_backup_download_get_redirects_with_warning(self):
+        config = NodeRedConfig.objects.create(name="Demo")
+        backup = BackupRecord.objects.create(
+            config=config,
+            filename="demo.tar.gz",
+            file_path="/tmp/does-not-matter.tar.gz",
+            status="success",
+        )
+        resp = self.client.get(
+            f"/instance/{config.slug}/backup/{backup.pk}/download/",
+            HTTP_REFERER=f"/instance/{config.slug}/backup/{backup.pk}/",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotEqual(resp.get("Content-Type", ""), "application/gzip")
+
+
 @override_settings(DEMO_MODE=True, REQUIRE_AUTH=True, APP_PASSWORD="x")
 class DemoModeOverridesAuthTest(TestCase):
     """AC-6 — DEMO_MODE forces REQUIRE_AUTH off via settings.py.
