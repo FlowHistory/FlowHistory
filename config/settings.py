@@ -49,6 +49,7 @@ MIDDLEWARE = (
         "django.contrib.messages.middleware.MessageMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
         "backup.middleware.simple_auth.SimpleAuthMiddleware",
+        "backup.middleware.demo_mode.DemoModeMiddleware",
     ]
     + (_PROMETHEUS_AFTER if METRICS_ENABLED else [])
 )
@@ -163,6 +164,14 @@ LOGGING = {
 REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "false").lower() in ("true", "1", "yes")
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 LOGIN_URL = "/login/"
+
+# Demo mode — read-only browseable deployment (ADR 0029).
+# When enabled, DemoModeMiddleware blocks all unsafe HTTP methods, the scheduler
+# and watcher are skipped in entrypoint.sh, and auth is forced off so the demo
+# is reachable without a password.
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+if DEMO_MODE:
+    REQUIRE_AUTH = False
 
 # Security headers (enable when not debugging)
 if not DEBUG:

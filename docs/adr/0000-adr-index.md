@@ -45,3 +45,4 @@ This document tracks all Architecture Decision Records (ADRs) and their implemen
 | [0026](0026-auth-security-hardening.md) | Auth Security Hardening | **Proposed** |
 | [0027](0027-prometheus-metrics-endpoint.md) | Prometheus Metrics Endpoint | **Proposed** |
 | [0028](0028-mobile-responsive-backup-history.md) | Mobile-Responsive Backup History View | **Proposed** |
+| [0029](0029-demo-mode.md) | Demo Mode | **Proposed** |
