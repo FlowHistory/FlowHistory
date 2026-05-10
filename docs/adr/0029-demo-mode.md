@@ -131,6 +131,8 @@ There is no way today to host a public, "click around" instance of FlowHistory f
 | Frontend treats `status: "error"` as a real failure and renders red rather than yellow. | Low | Low | The existing `showBanner` already styles all server-side rejections the same way; demo message is clearly worded. If a separate visual treatment is wanted later, add a `status: "demo"` branch in `app.js`. |
 | `entrypoint.sh` `trap` references uninitialised PIDs after skipping background launches and exits non-zero. | Medium | Low | Initialise `SCHEDULER_PID=""` and `WATCHER_PID=""` defaults; the existing `2>/dev/null` already swallows the spurious `kill` errors but defaulting the variables is cleaner. |
 | Operator runs `DEMO_MODE=true` against a real backup directory and assumes data is safe. | Low | Medium | Banner explicitly says "changes are not saved"; README documents that DEMO_MODE blocks writes but does not erase existing data. |
+| Attacker-controlled `Referer` header turns the post-write redirect into an open-redirect to a phishing page. | Low | Medium | Validate the `Referer` with `url_has_allowed_host_and_scheme` before redirecting; fall back to `/` when it points off-host. |
+| Django `/admin/` login form remains enumerable on the public demo URL; a stale superuser in a reused volume becomes a brute-force foothold. | Low | Medium | Block all `/admin/` paths in demo mode (`Http404` from the middleware); the project's `custom_404` surfaces this as a flash redirect to the dashboard. |
 
 ## Implementation Plan
 

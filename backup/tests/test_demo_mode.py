@@ -148,3 +148,59 @@ class DemoModeLeavesProbesAloneTest(TestCase):
     def test_metrics_endpoint_works(self):
         resp = self.client.get("/metrics")
         self.assertEqual(resp.status_code, 200)
+
+
+@override_settings(DEMO_MODE=True, REQUIRE_AUTH=False)
+class DemoModeRefererIsValidatedTest(TestCase):
+    """Referer is attacker-influenceable; the post-write redirect must not
+    let the demo deployment send visitors to an external URL."""
+
+    def test_external_referer_falls_back_to_root(self):
+        config = NodeRedConfig.objects.create(name="Demo")
+        resp = self.client.post(
+            f"/instance/{config.slug}/delete/",
+            HTTP_REFERER="https://attacker.example/phish",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
+
+    def test_same_host_referer_is_kept(self):
+        config = NodeRedConfig.objects.create(name="Demo")
+        same_host_url = f"http://testserver/instance/{config.slug}/"
+        resp = self.client.post(
+            f"/instance/{config.slug}/delete/", HTTP_REFERER=same_host_url
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], same_host_url)
+
+
+@override_settings(DEMO_MODE=True, REQUIRE_AUTH=False)
+class DemoModeHidesAdminTest(TestCase):
+    """Django admin is hidden in demo mode so its login form isn't an
+    enumerable foothold against any superuser left over in a reused volume.
+
+    The middleware raises Http404; the project's ``custom_404`` handler
+    surfaces that as a redirect to the dashboard with a flash message,
+    so we assert on the redirect target rather than a raw 404 status.
+    """
+
+    def test_admin_root_is_hidden(self):
+        resp = self.client.get("/admin/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
+
+    def test_admin_login_is_hidden(self):
+        resp = self.client.get("/admin/login/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
+
+
+@override_settings(DEMO_MODE=False, REQUIRE_AUTH=False)
+class DemoModeOffLeavesAdminAloneTest(TestCase):
+    """The /admin/ block is demo-mode-only; normal deployments are untouched."""
+
+    def test_admin_login_renders_admin_form(self):
+        resp = self.client.get("/admin/login/")
+        # The real Django admin login page is reachable (no demo-mode 404).
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Django administration")
