@@ -12,9 +12,7 @@ DEMO_MESSAGE = "Demo mode: changes are not saved."
 # GET endpoints that stream raw archive contents — blocked in demo mode so
 # anonymous visitors can't download backups that may include flows_cred.json
 # or settings.js from a real Node-RED instance.
-BLOCKED_GET_PATTERNS = (
-    re.compile(r"^/instance/[^/]+/backup/\d+/download/$"),
-)
+BLOCKED_GET_PATTERNS = (re.compile(r"^/instance/[^/]+/backup/\d+/download/$"),)
 
 
 class DemoModeMiddleware:
