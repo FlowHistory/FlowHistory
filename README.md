@@ -40,7 +40,7 @@ Edit `.env` with your general settings:
 ```env
 DEBUG=false
 ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.76
-TIME_ZONE=America/New_York
+TZ=America/New_York
 REQUIRE_AUTH=true
 APP_PASSWORD=changeme
 ```
@@ -145,7 +145,7 @@ Set `DEMO_MODE=true` to turn any deployment into a public, read-only browseable 
 |----------|---------|-------------|
 | `DEBUG` | `false` | Django debug mode |
 | `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated allowed hostnames |
-| `TIME_ZONE` | `America/New_York` | Timezone for schedules and timestamps |
+| `TZ` | `America/New_York` | Timezone for schedules and timestamps (POSIX standard env var) |
 | `REQUIRE_AUTH` | `false` | Enable password authentication |
 | `APP_PASSWORD` | | Password for web UI access |
 | `IMPORT_MAX_SIZE` | `52428800` | Maximum upload size for backup import in bytes (default 50 MB) |

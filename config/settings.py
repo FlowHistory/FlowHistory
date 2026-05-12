@@ -120,7 +120,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = os.environ.get("TIME_ZONE", "America/New_York")
+TIME_ZONE = os.environ.get("TZ", "America/New_York")
 USE_I18N = True
 USE_TZ = True
 
