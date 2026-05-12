@@ -6,6 +6,6 @@ services:
     environment:
       - DEBUG=true
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
-      - TIME_ZONE=${TIME_ZONE:-UTC}
+      - TZ=${TZ:-UTC}
       - REQUIRE_AUTH=false
     restart: unless-stopped
