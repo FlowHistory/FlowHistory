@@ -1,5 +1,15 @@
 # FlowHistory
 
+<p align="center">
+<img src="https://img.shields.io/github/stars/FlowHistory/FlowHistory?style=for-the-badge&label=Stars&color=orange" alt="Stars">
+<a href="https://github.com/FlowHistory/FlowHistory/releases/latest"><img src="https://img.shields.io/github/v/release/FlowHistory/FlowHistory?style=for-the-badge&color=purple" alt="Version"></a>
+<a href="https://github.com/FlowHistory/FlowHistory/actions/workflows/build-and-push.yml"><img src="https://img.shields.io/github/actions/workflow/status/FlowHistory/FlowHistory/build-and-push.yml?style=for-the-badge&label=Build" alt="Build"></a>
+</p>
+
+<p align="center">
+<a href="https://www.buymeacoffee.com/JMISm06AD"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+</p>
+
 A self-hosted backup and restore tool for Node-RED flow files. Runs as a Docker container that manages backups for one or more Node-RED instances, local (file-based) or remote (API-based). Automatically detects flow changes, creates compressed backups, and provides a web UI for managing backups, viewing diffs, and restoring.
 
 ![FlowHistory Dashboard](example.png)
